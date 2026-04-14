@@ -1,43 +1,154 @@
-import { Download, Play, Clock, User, ExternalLink } from 'lucide-react';
+import { useState ,useEffect } from 'react';
+import { Download, Play, Clock, User, Loader2, CheckCircle2 } from 'lucide-react';
 import type { DownloadResult, DownloadQuality } from '../types';
 import PlatformBadge from './PlatformBadge';
+
+function useDownloadKeyframes() {
+  useEffect(() => {
+    const id = 'vidsave-keyframes';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = `
+      @keyframes vs-sweep {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(400%); }
+      }
+      @keyframes vs-grow {
+        0%   { width: 0%; }
+        60%  { width: 72%; }
+        100% { width: 92%; }
+      }
+      @keyframes vs-bar {
+        0%, 100% { transform: scaleY(0.5); opacity: 0.4; }
+        50%       { transform: scaleY(1);   opacity: 1; }
+      }
+      .vs-sweep  { animation: vs-sweep 1.6s ease-in-out infinite; }
+      .vs-grow   { animation: vs-grow 12s ease-out forwards; }
+      .vs-bar-1  { animation: vs-bar 0.8s ease-in-out infinite; }
+      .vs-bar-2  { animation: vs-bar 0.8s ease-in-out 0.15s infinite; }
+      .vs-bar-3  { animation: vs-bar 0.8s ease-in-out 0.3s infinite; }
+    `;
+    document.head.appendChild(style);
+  }, []);
+}
 
 interface DownloadResultProps {
   result: DownloadResult;
 }
 
 function QualityButton({ quality }: { quality: DownloadQuality }) {
+  useDownloadKeyframes();
+  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
+
   const handleDownload = () => {
+    if (state === 'loading') return;
+    setState('loading');
+
     const a = document.createElement('a');
     a.href = quality.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.download = '';
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+
+    setTimeout(() => setState('done'), 2800);
+    setTimeout(() => setState('idle'), 6000);
   };
+
+  const isLoading = state === 'loading';
+  const isDone = state === 'done';
 
   return (
     <button
       onClick={handleDownload}
-      className="flex items-center justify-between w-full px-4 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-sky-500/50 transition-all duration-150 active:scale-98 group"
+      disabled={isLoading}
+      className={`
+        relative flex items-center justify-between w-full px-4 py-3.5 rounded-xl
+        transition-all duration-200 overflow-hidden group
+        disabled:cursor-not-allowed
+        ${isDone
+          ? 'bg-green-500/10 border border-green-500/30'
+          : isLoading
+            ? 'bg-slate-800 border border-sky-500/40'
+            : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-sky-500/50 active:scale-[0.98]'
+        }
+      `}
     >
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center group-hover:bg-sky-500/20 transition-colors">
-          <Play className="w-3.5 h-3.5 text-sky-400 fill-current" />
+      {/* Sweep shimmer overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
+          <div
+            className="vs-sweep absolute inset-y-0 w-1/2"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(56,189,248,0.07), transparent)' }}
+          />
         </div>
-        <div className="text-left">
-          <p className="text-sm font-semibold text-white">{quality.label}</p>
-          {quality.resolution && (
-            <p className="text-xs text-slate-400">{quality.resolution}</p>
+      )}
+
+      {/* Bottom progress bar */}
+      {isLoading && (
+        <div
+          className="vs-grow absolute bottom-0 left-0 h-0.5 rounded-full"
+          style={{ background: 'linear-gradient(90deg, #38bdf8, #818cf8)' }}
+        />
+      )}
+
+      {/* Left — icon + text */}
+      <div className="flex items-center gap-3 relative z-10">
+        <div className={`
+          w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors
+          ${isDone ? 'bg-green-500/15' : isLoading ? 'bg-sky-500/15' : 'bg-sky-500/10 group-hover:bg-sky-500/20'}
+        `}>
+          {isLoading ? (
+            <svg className="w-3.5 h-3.5 text-sky-400 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" />
+            </svg>
+          ) : isDone ? (
+            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+          ) : (
+            <Play className="w-3.5 h-3.5 text-sky-400 fill-current" />
           )}
         </div>
+
+        <div className="text-left">
+          <p className={`text-sm font-semibold transition-colors ${
+            isDone ? 'text-green-400' : isLoading ? 'text-sky-300' : 'text-white'
+          }`}>
+            {isDone ? 'Saved to downloads' : isLoading ? 'Preparing download…' : quality.label}
+          </p>
+          <p className={`text-xs mt-0.5 transition-colors ${
+            isDone ? 'text-green-500/60' : isLoading ? 'text-sky-500/60' : 'text-slate-400'
+          }`}>
+            {isLoading ? 'Merging video + audio' : quality.resolution ?? quality.label}
+          </p>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
+
+      {/* Right — size + indicator */}
+      <div className="flex items-center gap-2 relative z-10">
         {quality.size && (
-          <span className="text-xs text-slate-400">{quality.size}</span>
+          <span className={`text-xs font-medium tabular-nums transition-colors ${
+            isDone ? 'text-green-500/70' : isLoading ? 'text-sky-400' : 'text-slate-400'
+          }`}>
+            {quality.size}
+          </span>
         )}
-        <span className="text-xs font-medium text-slate-500 uppercase">.{quality.ext}</span>
-        <Download className="w-4 h-4 text-sky-400 group-hover:text-sky-300" />
+        <span className={`text-xs font-medium uppercase transition-colors ${
+          isDone ? 'text-green-500/40' : isLoading ? 'text-sky-500/50' : 'text-slate-500'
+        }`}>
+          .{quality.ext}
+        </span>
+
+        {isLoading ? (
+          <div className="flex items-end gap-0.5 h-5">
+            <div className="vs-bar-1 w-0.5 h-3 bg-sky-400 rounded-full" />
+            <div className="vs-bar-2 w-0.5 h-4 bg-sky-400 rounded-full" />
+            <div className="vs-bar-3 w-0.5 h-3 bg-sky-400 rounded-full" />
+          </div>
+        ) : isDone ? (
+          <CheckCircle2 className="w-4 h-4 text-green-400" />
+        ) : (
+          <Download className="w-4 h-4 text-sky-400 group-hover:text-sky-300 transition-colors" />
+        )}
       </div>
     </button>
   );
@@ -52,9 +163,7 @@ export default function DownloadResultCard({ result }: DownloadResultProps) {
             src={result.thumbnail}
             alt={result.title}
             className="w-full h-48 object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
           <div className="w-full h-48 bg-slate-800 flex items-center justify-center">
@@ -85,20 +194,18 @@ export default function DownloadResultCard({ result }: DownloadResultProps) {
         )}
       </div>
 
-      <div className="px-4 pb-4 space-y-2">
+      <div className="px-4 pb-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Choose Quality</p>
-          <span className="text-xs text-slate-500">{result.qualities.length} option{result.qualities.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-slate-500">
+            {result.qualities.length} option{result.qualities.length !== 1 ? 's' : ''}
+          </span>
         </div>
-        {result.qualities.map((q, i) => (
-          <QualityButton key={i} quality={q} />
-        ))}
-        {result.qualities.length === 0 && (
-          <div className="text-center py-4">
-            <ExternalLink className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">No downloadable formats found</p>
-          </div>
-        )}
+        <div className="space-y-2">
+          {result.qualities.map((q, i) => (
+            <QualityButton key={i} quality={q} />
+          ))}
+        </div>
       </div>
     </div>
   );

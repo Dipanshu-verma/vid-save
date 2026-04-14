@@ -1,9 +1,8 @@
 import { useState, useCallback } from 'react';
 import type { DownloadResult, DownloadStatus } from '../types';
-import { supabase, getSessionId } from '../lib/supabase';
+import { addToHistory } from '../lib/storage';
 
-const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/video-downloader`;
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export function useDownload() {
   const [status, setStatus] = useState<DownloadStatus>('idle');
@@ -15,63 +14,38 @@ export function useDownload() {
     setResult(null);
     setError(null);
 
-    const sessionId = getSessionId();
-
-    const { data: record } = await supabase
-      .from('downloads')
-      .insert({
-        session_id: sessionId,
-        platform: 'unknown',
-        original_url: url,
-        status: 'pending',
-      })
-      .select('id')
-      .single();
-
-    const recordId = record?.id;
-
     try {
-      const response = await fetch(EDGE_URL, {
+      const response = await fetch(`${API_URL}/api/download`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${ANON_KEY}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const err = await response.json().catch(() => ({ error: 'Request failed' }));
-        throw new Error(err.error || `HTTP ${response.status}`);
+        throw new Error(data.error || `Request failed (${response.status})`);
       }
 
-      const data: DownloadResult = await response.json();
-      setResult(data);
+      const downloadResult = data as DownloadResult;
+      setResult(downloadResult);
       setStatus('success');
 
-      if (recordId) {
-        await supabase
-          .from('downloads')
-          .update({
-            platform: data.platform,
-            title: data.title,
-            thumbnail_url: data.thumbnail,
-            download_url: data.qualities[0]?.url ?? '',
-            quality: data.qualities[0]?.label ?? '',
-            status: 'completed',
-          })
-          .eq('id', recordId);
-      }
+      // Save to localStorage history
+      addToHistory({
+        platform: downloadResult.platform,
+        title: downloadResult.title,
+        thumbnail_url: downloadResult.thumbnail,
+        download_url: downloadResult.qualities[0]?.url ?? '',
+        quality: downloadResult.qualities[0]?.label ?? '',
+        status: 'completed',
+        original_url: url,
+      });
+
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(msg);
       setStatus('error');
-      if (recordId) {
-        await supabase
-          .from('downloads')
-          .update({ status: 'failed', error_message: msg })
-          .eq('id', recordId);
-      }
     }
   }, []);
 

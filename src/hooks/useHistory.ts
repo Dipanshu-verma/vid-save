@@ -1,28 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DownloadRecord } from '../types';
-import { supabase, getSessionId } from '../lib/supabase';
+import { getHistory } from '../lib/storage';
 
 export function useHistory() {
   const [records, setRecords] = useState<DownloadRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetch = useCallback(async () => {
+  const refetch = useCallback(() => {
     setLoading(true);
-    const sessionId = getSessionId();
-    const { data } = await supabase
-      .from('downloads')
-      .select('*')
-      .eq('session_id', sessionId)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .limit(50);
-    setRecords((data as DownloadRecord[]) ?? []);
-    setLoading(false);
+    // Simulate async for consistent UX with loading state
+    setTimeout(() => {
+      setRecords(getHistory());
+      setLoading(false);
+    }, 150);
   }, []);
 
   useEffect(() => {
-    fetch();
-  }, [fetch]);
+    refetch();
+  }, [refetch]);
 
-  return { records, loading, refetch: fetch };
+  // Re-fetch when tab becomes visible (e.g., user returns to history tab)
+  useEffect(() => {
+    const onFocus = () => refetch();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [refetch]);
+
+  return { records, loading, refetch };
 }

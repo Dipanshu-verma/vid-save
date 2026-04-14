@@ -1,4 +1,4 @@
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle , Youtube, Instagram, Facebook, Twitter } from 'lucide-react';
 import DownloadForm from '../components/DownloadForm';
 import DownloadResultCard from '../components/DownloadResult';
 import { AdPlaceholder } from '../components/AdBanner';
@@ -53,12 +53,34 @@ export default function Downloader() {
       <div className="bg-slate-800/50 border border-slate-700/30 rounded-2xl p-4 space-y-2.5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Supported Links</p>
         <div className="space-y-1.5 text-xs text-slate-400 leading-relaxed">
-          <p>• <span className="text-red-400 font-medium">YouTube</span> — youtube.com/watch?v=..., youtu.be/...</p>
-          <p>• <span className="text-pink-400 font-medium">Instagram</span> — instagram.com/p/..., instagram.com/reel/...</p>
-          <p>• <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...</p>
-          <p>• <span className="text-slate-300 font-medium">TikTok</span> — tiktok.com/@.../video/...</p>
-          <p>• <span className="text-sky-400 font-medium">Twitter/X</span> — twitter.com/.../status/...</p>
-        </div>
+  <p className="flex items-center gap-2">
+    <Youtube className="w-4 h-4 text-red-500" />
+    <span>
+      <span className="text-red-400 font-medium">YouTube</span> — youtube.com/watch?v=..., youtu.be/...
+    </span>
+  </p>
+
+  <p className="flex items-center gap-2">
+    <Instagram className="w-4 h-4 text-pink-500" />
+    <span>
+      <span className="text-pink-400 font-medium">Instagram</span> — instagram.com/p/..., instagram.com/reel/...
+    </span>
+  </p>
+
+  <p className="flex items-center gap-2">
+    <Facebook className="w-4 h-4 text-blue-500" />
+    <span>
+      <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...
+    </span>
+  </p>
+
+  <p className="flex items-center gap-2">
+    <Twitter className="w-4 h-4 text-sky-500" />
+    <span>
+      <span className="text-sky-400 font-medium">Twitter/X</span> — twitter.com/.../status/...
+    </span>
+  </p>
+</div>
       </div>
     </div>
   );

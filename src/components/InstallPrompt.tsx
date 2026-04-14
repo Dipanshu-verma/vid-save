@@ -50,7 +50,7 @@ export default function InstallPrompt() {
           <Smartphone className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">Install VidSave</p>
+          <p className="text-sm font-semibold text-white">Install Save It Pro</p>
           <p className="text-xs text-slate-400">Add to home screen for quick access</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

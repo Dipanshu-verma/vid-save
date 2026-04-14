@@ -8,11 +8,8 @@ export default function Header() {
           <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center shadow-lg shadow-sky-500/30">
             <Download className="w-4 h-4 text-white" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-white text-lg tracking-tight">VidSave</span>
+          <span className="font-bold text-white text-lg tracking-tight">Save It Pro</span>
         </div>
-        <span className="text-xs font-medium text-sky-400 bg-sky-400/10 px-2.5 py-1 rounded-full border border-sky-400/20">
-          Free
-        </span>
       </div>
     </header>
   );

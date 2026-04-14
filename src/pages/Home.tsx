@@ -25,7 +25,7 @@ export default function Home({ onNavigate }: HomeProps) {
         <div className="w-14 h-14 rounded-2xl bg-sky-500 flex items-center justify-center mx-auto mb-4 shadow-xl shadow-sky-500/30">
           <Youtube className="w-8 h-8 text-white" />
         </div>
-        <h1 className="text-2xl font-bold text-white mb-2">VidSave</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Save It Pro</h1>
         <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
           Download videos from YouTube, Instagram, Facebook and save WhatsApp statuses — fast and free.
         </p>
@@ -60,7 +60,7 @@ export default function Home({ onNavigate }: HomeProps) {
       </div>
 
       <div>
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Why VidSave?</p>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Why Save It Pro?</p>
         <div className="space-y-2.5">
           {features.map(({ icon: Icon, title, desc }) => (
             <div key={title} className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/30">
@@ -80,7 +80,7 @@ export default function Home({ onNavigate }: HomeProps) {
 
       <div className="text-center pt-2">
         <p className="text-[11px] text-slate-600">
-          VidSave respects copyright. Download only content you own or have permission to download.
+          Save It Pro respects copyright. Download only content you own or have permission to download.
         </p>
       </div>
     </div>

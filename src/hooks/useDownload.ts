@@ -31,7 +31,6 @@ export function useDownload() {
       setResult(downloadResult);
       setStatus('success');
 
-      // Save to localStorage history
       addToHistory({
         platform: downloadResult.platform,
         title: downloadResult.title,
@@ -57,3 +56,5 @@ export function useDownload() {
 
   return { status, result, error, fetchDownload, reset };
 }
+
+export type UseDownloadReturn = ReturnType<typeof useDownload>;

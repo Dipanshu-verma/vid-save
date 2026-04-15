@@ -7,6 +7,7 @@ import Downloader from './pages/Downloader';
 import WhatsAppPage from './pages/WhatsAppPage';
 import DownloadHistory from './components/DownloadHistory';
 import { useHistory } from './hooks/useHistory';
+import { useDownload } from './hooks/useDownload';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -26,6 +27,9 @@ export default function App() {
 
   const { records, loading, refetch } = useHistory();
 
+  // Lifted up — persists across tab switches
+  const downloadState = useDownload();
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
@@ -42,7 +46,7 @@ export default function App() {
       case 'home':
         return <Home onNavigate={handleTabChange} />;
       case 'downloader':
-        return <Downloader />;
+        return <Downloader downloadState={downloadState} />;
       case 'whatsapp':
         return <WhatsAppPage />;
       case 'history':

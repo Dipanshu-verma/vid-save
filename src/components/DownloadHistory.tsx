@@ -19,15 +19,10 @@ function HistoryItem({ record }: { record: DownloadRecord }) {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-  const handleDownload = () => {
-    if (!record.download_url) return;
-    const a = document.createElement('a');
-    a.href = record.download_url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
-  };
-
+const handleDownload = () => {
+  if (!record.download_url) return;
+  window.open(record.download_url, '_blank');
+};
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 hover:border-slate-700 transition-all">
       {record.thumbnail_url ? (

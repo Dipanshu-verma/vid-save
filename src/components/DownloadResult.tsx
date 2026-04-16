@@ -1,5 +1,8 @@
-import { useState ,useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, Play, Clock, User, Loader2, CheckCircle2 } from 'lucide-react';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
+import Downloader from '../plugins/Downloader';
 import type { DownloadResult, DownloadQuality } from '../types';
 import PlatformBadge from './PlatformBadge';
 
@@ -37,24 +40,96 @@ interface DownloadResultProps {
   result: DownloadResult;
 }
 
-function QualityButton({ quality }: { quality: DownloadQuality }) {
-  useDownloadKeyframes();
-  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
+function QualityButton({ quality, title }: { quality: DownloadQuality; title: string }) {  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
 
-  const handleDownload = () => {
-    if (state === 'loading') return;
-    setState('loading');
+//   const handleDownload = () => {
+//     if (state === 'loading') return;
+//     setState('loading');
+//
+//     const a = document.createElement('a');
+//     a.href = quality.url;
+//     document.body.appendChild(a);
+//     a.click();
+//     document.body.removeChild(a);
+//
+//     setTimeout(() => setState('done'), 2800);
+//     setTimeout(() => setState('idle'), 6000);
+//   };
 
-    const a = document.createElement('a');
-    a.href = quality.url;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+// const handleDownload = async () => {
+//   if (state === 'loading') return;
+//   setState('loading');
+//
+//   try {
+//     const downloadUrl = quality.url
+//       .replace('http://localhost:3001', import.meta.env.VITE_API_URL || 'http://192.168.1.11:3001');
+//
+//     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
+//
+//     try {
+//       // Use native downloader — works in background
+//       const { FileDownloader } = await import('@capawesome-team/capacitor-file-downloader');
+//       await FileDownloader.download({
+//         url: downloadUrl,
+//         fileName: filename,
+//       });
+//     } catch {
+//       // Fallback: fetch blob
+//       const response = await fetch(downloadUrl);
+//       if (!response.ok) throw new Error('Download failed');
+//       const blob = await response.blob();
+//       const base64 = await new Promise<string>((resolve, reject) => {
+//         const reader = new FileReader();
+//         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+//         reader.onerror = reject;
+//         reader.readAsDataURL(blob);
+//       });
+//       const { Filesystem, Directory } = await import('@capacitor/filesystem');
+//       await Filesystem.writeFile({
+//         path: filename,
+//         data: base64,
+//         directory: Directory.Documents,
+//       });
+//     }
+//
+//     setState('done');
+//     setTimeout(() => setState('idle'), 3000);
+//   } catch (err) {
+//     console.error(err);
+//     setState('idle');
+//   }
+// };
 
-    setTimeout(() => setState('done'), 2800);
-    setTimeout(() => setState('idle'), 6000);
-  };
+const handleDownload = async () => {
+  if (state === 'loading') return;
+  setState('loading');
 
+  try {
+    const downloadUrl = quality.url
+      .replace('http://localhost:3001', import.meta.env.VITE_API_URL || 'http://192.168.1.4:3001');
+
+    const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
+
+    if (Capacitor.isNativePlatform()) {
+      // Use native Android DownloadManager — runs in background, shows notification
+      await Downloader.download({ url: downloadUrl, filename });
+    } else {
+      // Web fallback
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    setState('done');
+    setTimeout(() => setState('idle'), 3000);
+  } catch (err) {
+    console.error(err);
+    setState('idle');
+  }
+};
   const isLoading = state === 'loading';
   const isDone = state === 'done';
 
@@ -202,9 +277,9 @@ export default function DownloadResultCard({ result }: DownloadResultProps) {
           </span>
         </div>
         <div className="space-y-2">
-          {result.qualities.map((q, i) => (
-            <QualityButton key={i} quality={q} />
-          ))}
+{result.qualities.map((q, i) => (
+  <QualityButton key={i} quality={q} title={result.title} />
+))}
         </div>
       </div>
     </div>

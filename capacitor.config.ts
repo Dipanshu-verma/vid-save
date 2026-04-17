@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.vidsave.app',
-  appName: 'VidSave',
+  appName: 'Save It Pro',
   webDir: 'dist',
   server: {
     cleartext: true,

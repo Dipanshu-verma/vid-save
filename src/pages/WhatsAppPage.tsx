@@ -24,7 +24,7 @@ export default function WhatsAppPage() {
               WhatsApp status saving requires our Android app. Browsers cannot access WhatsApp's hidden status folder due to Android security restrictions.
             </p>
           </div>
-
+          
             href="https://github.com/Dipanshu-verma/vid-save/releases/latest/download/app-release.apk"
             className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
           >
@@ -32,7 +32,7 @@ export default function WhatsAppPage() {
             Download Android App (APK)
           </a>
           <p className="text-[11px] text-slate-500">
-            Free • No Play Store required • Direct install
+            Free - No Play Store required - Direct install
           </p>
         </div>
         <AdPlaceholder label="Advertisement" />

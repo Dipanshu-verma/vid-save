@@ -25,12 +25,13 @@ export default function WhatsAppPage() {
             </p>
           </div>
 
-            href="https://github.com/Dipanshu-verma/vid-save/releases/latest/download/app-release.apk"
-            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
-          >
-            <Download className="w-4 h-4" />
-            Download Android App
-          </a>
+           <a
+             href="https://github.com/Dipanshu-verma/vid-save/releases/latest/download/app-release.apk"
+             className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
+           >
+             <Download className="w-4 h-4" />
+             Download Android App
+           </a>
           <p className="text-[11px] text-slate-500">
             Free. No Play Store required. Direct install.
           </p>

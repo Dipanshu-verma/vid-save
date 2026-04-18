@@ -42,19 +42,6 @@ interface DownloadResultProps {
 
 function QualityButton({ quality, title }: { quality: DownloadQuality; title: string }) {  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
 
-//   const handleDownload = () => {
-//     if (state === 'loading') return;
-//     setState('loading');
-//
-//     const a = document.createElement('a');
-//     a.href = quality.url;
-//     document.body.appendChild(a);
-//     a.click();
-//     document.body.removeChild(a);
-//
-//     setTimeout(() => setState('done'), 2800);
-//     setTimeout(() => setState('idle'), 6000);
-//   };
 
 // const handleDownload = async () => {
 //   if (state === 'loading') return;
@@ -100,21 +87,105 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
 //   }
 // };
 
+// const handleDownload = async () => {
+//   if (state === 'loading') return;
+//   setState('loading');
+//
+//   try {
+//     const downloadUrl = quality.url
+//       .replace('http://localhost:3001', import.meta.env.VITE_API_URL || 'http://192.168.1.4:3001');
+//
+//     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
+//
+//     if (Capacitor.isNativePlatform()) {
+//       // Use native Android DownloadManager — runs in background, shows notification
+//       await Downloader.download({ url: downloadUrl, filename });
+//     } else {
+//       // Web fallback
+//       const a = document.createElement('a');
+//       a.href = downloadUrl;
+//       a.download = filename;
+//       document.body.appendChild(a);
+//       a.click();
+//       document.body.removeChild(a);
+//     }
+//
+//     setState('done');
+//     setTimeout(() => setState('idle'), 3000);
+//   } catch (err) {
+//     console.error(err);
+//     setState('idle');
+//   }
+// };
+
 const handleDownload = async () => {
   if (state === 'loading') return;
   setState('loading');
+  setProgress('');
 
   try {
-    const downloadUrl = quality.url
-      .replace('http://localhost:3001', import.meta.env.VITE_API_URL || 'http://192.168.1.4:3001');
-
+    const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+    let downloadUrl = quality.url.replace('http://localhost:3001', API);
     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
 
+    // Handle RapidAPI render jobs
+    const isRenderJob = downloadUrl.includes('render-api') && downloadUrl.includes('execute');
+
+    if (isRenderJob) {
+      setProgress('Starting render...');
+      const execRes = await fetch(downloadUrl);
+      const text = await execRes.text();
+      let execData;
+      try { execData = JSON.parse(text); } catch {
+        throw new Error('Render API returned invalid response');
+      }
+
+      const sseUrl = execData.sseStatusUrl;
+      if (!sseUrl) throw new Error('No SSE URL in render response');
+
+      setProgress('Processing video...');
+      const cdnUrl = await new Promise<string>((resolve, reject) => {
+        const eventSource = new EventSource(sseUrl);
+        const timeout = setTimeout(() => {
+          eventSource.close();
+          reject(new Error('Render timeout'));
+        }, 120000);
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.status === 'downloading_inputs') setProgress(`Downloading... ${data.progress || 0}%`);
+            else if (data.status === 'processing') setProgress(`Processing... ${data.progress || 0}%`);
+            else if (data.status === 'uploading_output') setProgress(`Finalizing...`);
+
+            if (data.status === 'done' && data.output?.url) {
+              clearTimeout(timeout);
+              eventSource.close();
+              resolve(data.output.url);
+            } else if (data.status === 'error' || data.status === 'failed') {
+              clearTimeout(timeout);
+              eventSource.close();
+              reject(new Error('Render failed'));
+            }
+          } catch {}
+        };
+
+        eventSource.onerror = () => {
+          clearTimeout(timeout);
+          eventSource.close();
+          reject(new Error('SSE connection failed'));
+        };
+      });
+
+      // Proxy CDN URL through backend to avoid CORS/expiry
+      setProgress('Downloading file...');
+      downloadUrl = `${API}/api/proxy?url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
+    }
+
+    // Download
     if (Capacitor.isNativePlatform()) {
-      // Use native Android DownloadManager — runs in background, shows notification
       await Downloader.download({ url: downloadUrl, filename });
     } else {
-      // Web fallback
       const a = document.createElement('a');
       a.href = downloadUrl;
       a.download = filename;
@@ -124,10 +195,13 @@ const handleDownload = async () => {
     }
 
     setState('done');
+    setProgress('');
     setTimeout(() => setState('idle'), 3000);
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
     setState('idle');
+    setProgress('');
+    alert(`Download failed: ${err?.message || 'Unknown error'}`);
   }
 };
   const isLoading = state === 'loading';

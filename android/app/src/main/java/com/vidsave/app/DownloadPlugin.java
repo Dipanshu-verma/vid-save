@@ -13,9 +13,77 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-
+import org.json.JSONObject;
+import org.json.JSONArray;
 @CapacitorPlugin(name = "Downloader")
 public class DownloadPlugin extends Plugin {
+
+//    @PluginMethod
+//    public void download(PluginCall call) {
+//        String url = call.getString("url");
+//        String filename = call.getString("filename", "video.mp4");
+//
+//        if (url == null) {
+//            call.reject("URL is required");
+//            return;
+//        }
+//
+//        try {
+//            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+//            request.setTitle(filename);
+//            request.setDescription("Downloading via VidSave");
+//            request.setNotificationVisibility(
+//                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+//            );
+//            request.setDestinationInExternalPublicDir(
+//                    Environment.DIRECTORY_DOWNLOADS, filename
+//            );
+//            request.setAllowedOverMetered(true);
+//            request.setAllowedOverRoaming(true);
+//            request.setMimeType("video/mp4");
+//
+//            DownloadManager dm = (DownloadManager) getContext()
+//                    .getSystemService(Context.DOWNLOAD_SERVICE);
+//
+//            long downloadId = dm.enqueue(request);
+//
+//            new Thread(() -> {
+//                boolean downloading = true;
+//                while (downloading) {
+//                    DownloadManager.Query q = new DownloadManager.Query();
+//                    q.setFilterById(downloadId);
+//                    android.database.Cursor cursor = dm.query(q);
+//                    if (cursor != null && cursor.moveToFirst()) {
+//                        int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+//                        int status = cursor.getInt(statusIndex);
+//                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+//                            downloading = false;
+//                            File file = new File(
+//                                    Environment.getExternalStoragePublicDirectory(
+//                                            Environment.DIRECTORY_DOWNLOADS), filename
+//                            );
+//                            MediaScannerConnection.scanFile(
+//                                    getContext(),
+//                                    new String[]{ file.getAbsolutePath() },
+//                                    new String[]{ "video/mp4" },
+//                                    (path, uri) -> {}
+//                            );
+//                        } else if (status == DownloadManager.STATUS_FAILED) {
+//                            downloading = false;
+//                        }
+//                        cursor.close();
+//                    } else {
+//                        downloading = false;
+//                    }
+//                    try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+//                }
+//            }).start();
+//
+//            call.resolve();
+//        } catch (Exception e) {
+//            call.reject("Download failed: " + e.getMessage());
+//        }
+//    }
 
     @PluginMethod
     public void download(PluginCall call) {
@@ -28,9 +96,14 @@ public class DownloadPlugin extends Plugin {
         }
 
         try {
+            File destDir = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+            );
+            if (!destDir.exists()) destDir.mkdirs();
+
             DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-            request.setTitle(filename);
-            request.setDescription("Downloading via VidSave");
+            request.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+            request.setDescription("Downloading via Save It Pro");
             request.setNotificationVisibility(
                     DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
             );
@@ -41,40 +114,97 @@ public class DownloadPlugin extends Plugin {
             request.setAllowedOverRoaming(true);
             request.setMimeType("video/mp4");
 
+            // Allow downloading over any network
+            request.setAllowedNetworkTypes(
+                    DownloadManager.Request.NETWORK_WIFI |
+                            DownloadManager.Request.NETWORK_MOBILE
+            );
+
+            // Add headers to help with server compatibility
+            request.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+            request.addRequestHeader("Connection", "keep-alive");
+
             DownloadManager dm = (DownloadManager) getContext()
                     .getSystemService(Context.DOWNLOAD_SERVICE);
 
             long downloadId = dm.enqueue(request);
 
+            // Monitor download in background thread
             new Thread(() -> {
                 boolean downloading = true;
+                int failCount = 0;
+                int maxRetries = 3;
+
                 while (downloading) {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+
                     DownloadManager.Query q = new DownloadManager.Query();
                     q.setFilterById(downloadId);
                     android.database.Cursor cursor = dm.query(q);
-                    if (cursor != null && cursor.moveToFirst()) {
-                        int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                        int status = cursor.getInt(statusIndex);
-                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                            downloading = false;
-                            File file = new File(
-                                    Environment.getExternalStoragePublicDirectory(
-                                            Environment.DIRECTORY_DOWNLOADS), filename
-                            );
-                            MediaScannerConnection.scanFile(
-                                    getContext(),
-                                    new String[]{ file.getAbsolutePath() },
-                                    new String[]{ "video/mp4" },
-                                    (path, uri) -> {}
-                            );
-                        } else if (status == DownloadManager.STATUS_FAILED) {
-                            downloading = false;
-                        }
-                        cursor.close();
-                    } else {
+
+                    if (cursor == null || !cursor.moveToFirst()) {
                         downloading = false;
+                        break;
                     }
-                    try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+
+                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                    int status = cursor.getInt(statusIndex);
+                    int reason = cursor.getInt(reasonIndex);
+                    cursor.close();
+
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        downloading = false;
+                        // Trigger media scan
+                        File file = new File(destDir, filename);
+                        MediaScannerConnection.scanFile(
+                                getContext(),
+                                new String[]{ file.getAbsolutePath() },
+                                new String[]{ "video/mp4" },
+                                null
+                        );
+                        android.util.Log.d("Downloader", "Download complete: " + filename);
+
+                    } else if (status == DownloadManager.STATUS_FAILED) {
+                        android.util.Log.e("Downloader", "Download failed, reason: " + reason + " attempt: " + (failCount + 1));
+                        failCount++;
+
+                        if (failCount < maxRetries) {
+                            // Retry download
+                            android.util.Log.d("Downloader", "Retrying download...");
+                            dm.remove(downloadId);
+                            try { Thread.sleep(2000); } catch (InterruptedException e) { break; }
+
+                            DownloadManager.Request retryRequest = new DownloadManager.Request(Uri.parse(url));
+                            retryRequest.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+                            retryRequest.setDescription("Retrying download... (" + failCount + "/" + maxRetries + ")");
+                            retryRequest.setNotificationVisibility(
+                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                            );
+                            retryRequest.setDestinationInExternalPublicDir(
+                                    Environment.DIRECTORY_DOWNLOADS, filename
+                            );
+                            retryRequest.setAllowedOverMetered(true);
+                            retryRequest.setAllowedOverRoaming(true);
+                            retryRequest.setMimeType("video/mp4");
+                            retryRequest.setAllowedNetworkTypes(
+                                    DownloadManager.Request.NETWORK_WIFI |
+                                            DownloadManager.Request.NETWORK_MOBILE
+                            );
+                            retryRequest.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+                            retryRequest.addRequestHeader("Connection", "keep-alive");
+
+                            long newId = dm.enqueue(retryRequest);
+                            android.util.Log.d("Downloader", "Retry enqueued: " + newId);
+                        } else {
+                            downloading = false;
+                            android.util.Log.e("Downloader", "All retries failed for: " + filename);
+                        }
+                    }
                 }
             }).start();
 
@@ -139,6 +269,176 @@ public class DownloadPlugin extends Plugin {
                 );
             } catch (Exception e) {
                 call.reject("Copy failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    @PluginMethod
+    public void getYoutubeInfo(PluginCall call) {
+        String videoId = call.getString("videoId");
+        if (videoId == null) {
+            call.reject("videoId is required");
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                okhttp3.OkHttpClient client = new okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                        .build();
+
+                String[][] clients = {
+                        {"ANDROID", "19.30.36", "3", "com.google.android.youtube/19.30.36 (Linux; U; Android 11) gzip", "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"},
+                        {"ANDROID_VR", "1.56.21", "28", "com.google.android.apps.youtube.vr.oculus/1.56.21 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip", "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"},
+                        {"ANDROID_TESTSUITE", "1.9", "30", "com.google.android.youtube/1.9 (Linux; U; Android 11) gzip", "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"},
+                };
+
+                org.json.JSONObject json = null;
+                String lastError = "All clients failed";
+
+                for (String[] clientInfo : clients) {
+                    try {
+                        String clientName = clientInfo[0];
+                        String clientVersion = clientInfo[1];
+                        String clientNameInt = clientInfo[2];
+                        String userAgent = clientInfo[3];
+                        String apiKey = clientInfo[4];
+
+                        String body = "{\"videoId\":\"" + videoId + "\","
+                                + "\"context\":{\"client\":{"
+                                + "\"clientName\":\"" + clientName + "\","
+                                + "\"clientVersion\":\"" + clientVersion + "\","
+                                + "\"androidSdkVersion\":30,"
+                                + "\"hl\":\"en\","
+                                + "\"gl\":\"US\","
+                                + "\"utcOffsetMinutes\":0"
+                                + "}}}";
+
+                        okhttp3.RequestBody requestBody = okhttp3.RequestBody.create(
+                                body.getBytes("UTF-8"),
+                                okhttp3.MediaType.parse("application/json; charset=utf-8")
+                        );
+
+                        okhttp3.Request request = new okhttp3.Request.Builder()
+                                .url("https://www.youtube.com/youtubei/v1/player?key=" + apiKey + "&prettyPrint=false")
+                                .post(requestBody)
+                                .addHeader("Content-Type", "application/json")
+                                .addHeader("User-Agent", userAgent)
+                                .addHeader("X-YouTube-Client-Name", clientNameInt)
+                                .addHeader("X-YouTube-Client-Version", clientVersion)
+                                .addHeader("X-Goog-Api-Key", apiKey)
+                                .build();
+
+                        okhttp3.Response response = client.newCall(request).execute();
+                        String responseBody = response.body().string();
+
+                        android.util.Log.d("YouTubeAPI", clientName + " code: " + response.code());
+
+                        org.json.JSONObject candidate = new org.json.JSONObject(responseBody);
+
+                        if (!candidate.has("videoDetails")) {
+                            android.util.Log.d("YouTubeAPI", clientName + ": no videoDetails, skipping");
+                            continue;
+                        }
+
+                        if (candidate.has("playabilityStatus")) {
+                            String status = candidate.getJSONObject("playabilityStatus").optString("status", "");
+                            if (status.equals("LOGIN_REQUIRED") || status.equals("UNPLAYABLE")) {
+                                android.util.Log.d("YouTubeAPI", clientName + ": " + status + ", skipping");
+                                continue;
+                            }
+                        }
+
+                        if (!candidate.has("streamingData")) {
+                            android.util.Log.d("YouTubeAPI", clientName + ": no streamingData, skipping");
+                            continue;
+                        }
+
+                        json = candidate;
+                        android.util.Log.d("YouTubeAPI", clientName + ": SUCCESS");
+                        break;
+
+                    } catch (Exception e) {
+                        lastError = e.getMessage();
+                        android.util.Log.e("YouTubeAPI", "Client error: " + e.getMessage());
+                    }
+                }
+
+                if (json == null) {
+                    call.reject("Failed: " + lastError);
+                    return;
+                }
+
+                org.json.JSONObject videoDetails = json.getJSONObject("videoDetails");
+                org.json.JSONObject streamingData = json.getJSONObject("streamingData");
+
+                String title = videoDetails.optString("title", "video");
+                String thumbnail = "";
+                try {
+                    org.json.JSONArray thumbs = videoDetails
+                            .getJSONObject("thumbnail")
+                            .getJSONArray("thumbnails");
+                    thumbnail = thumbs.getJSONObject(thumbs.length() - 1).getString("url");
+                } catch (Exception ignored) {}
+
+                org.json.JSONArray formats = streamingData.optJSONArray("formats");
+                org.json.JSONArray adaptiveFormats = streamingData.optJSONArray("adaptiveFormats");
+                org.json.JSONArray qualities = new org.json.JSONArray();
+
+                if (formats != null) {
+                    for (int i = 0; i < formats.length(); i++) {
+                        org.json.JSONObject fmt = formats.getJSONObject(i);
+                        String streamUrl = fmt.optString("url", "");
+                        if (streamUrl.isEmpty()) continue;
+                        String mimeType = fmt.optString("mimeType", "");
+                        if (!mimeType.contains("mp4")) continue;
+                        int height = fmt.optInt("height", 0);
+                        String quality = fmt.optString("qualityLabel", height + "p");
+                        long filesize = fmt.optLong("contentLength", 0);
+
+                        org.json.JSONObject q = new org.json.JSONObject();
+                        q.put("label", quality);
+                        q.put("url", streamUrl);
+                        q.put("height", height);
+                        q.put("size", filesize);
+                        qualities.put(q);
+                    }
+                }
+
+                if (qualities.length() == 0 && adaptiveFormats != null) {
+                    for (int i = 0; i < adaptiveFormats.length(); i++) {
+                        org.json.JSONObject fmt = adaptiveFormats.getJSONObject(i);
+                        String streamUrl = fmt.optString("url", "");
+                        if (streamUrl.isEmpty()) continue;
+                        String mimeType = fmt.optString("mimeType", "");
+                        if (!mimeType.contains("mp4")) continue;
+                        if (fmt.has("audioQuality")) continue;
+                        int height = fmt.optInt("height", 0);
+                        if (height == 0) continue;
+                        String quality = fmt.optString("qualityLabel", height + "p");
+
+                        org.json.JSONObject q = new org.json.JSONObject();
+                        q.put("label", quality);
+                        q.put("url", streamUrl);
+                        q.put("height", height);
+                        q.put("size", 0);
+                        qualities.put(q);
+                    }
+                }
+
+                android.util.Log.d("YouTubeAPI", "Found " + qualities.length() + " qualities");
+
+                JSObject result = new JSObject();
+                result.put("title", title);
+                result.put("thumbnail", thumbnail);
+                result.put("qualities", qualities.toString());
+                result.put("platform", "youtube");
+                call.resolve(result);
+
+            } catch (Exception e) {
+                android.util.Log.e("YouTubeAPI", "Fatal: " + e.getMessage());
+                call.reject("Failed: " + e.getMessage());
             }
         }).start();
     }

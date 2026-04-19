@@ -41,7 +41,7 @@ interface DownloadResultProps {
 }
 
 function QualityButton({ quality, title }: { quality: DownloadQuality; title: string }) {  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
-
+const [progress, setProgress] = useState<string>(''); // ADD THIS LINE
 
 // const handleDownload = async () => {
 //   if (state === 'loading') return;
@@ -118,6 +118,199 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
 //   }
 // };
 
+// const handleDownload = async () => {
+//   if (state === 'loading') return;
+//   setState('loading');
+//   setProgress('');
+//
+//   try {
+//     const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+//     let downloadUrl = quality.url.replace('http://localhost:3001', API);
+//     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
+//
+//     const isRenderJob = downloadUrl.includes('render-api') && downloadUrl.includes('execute');
+//
+//     if (isRenderJob) {
+//       setProgress('Starting render...');
+//       const execRes = await fetch(downloadUrl);
+//       const text = await execRes.text();
+//       let execData;
+//       try { execData = JSON.parse(text); } catch {
+//         throw new Error('Render API invalid response');
+//       }
+//
+//       const sseUrl = execData.sseStatusUrl;
+//       if (!sseUrl) throw new Error('No SSE URL');
+//
+//       setProgress('Processing...');
+//       const cdnUrl = await new Promise<string>((resolve, reject) => {
+//         const eventSource = new EventSource(sseUrl);
+//         const timeout = setTimeout(() => {
+//           eventSource.close();
+//           reject(new Error('Render timeout'));
+//         }, 120000);
+//
+//         eventSource.onmessage = (event) => {
+//           try {
+//             const data = JSON.parse(event.data);
+//             if (data.status === 'downloading_inputs') setProgress(`Downloading... ${data.progress || 0}%`);
+//             else if (data.status === 'processing') setProgress(`Processing...`);
+//             else if (data.status === 'uploading_output') setProgress(`Finalizing...`);
+//             if (data.status === 'done' && data.output?.url) {
+//               clearTimeout(timeout);
+//               eventSource.close();
+//               resolve(data.output.url);
+//             } else if (data.status === 'error' || data.status === 'failed') {
+//               clearTimeout(timeout);
+//               eventSource.close();
+//               reject(new Error('Render failed'));
+//             }
+//           } catch {}
+//         };
+//
+//         eventSource.onerror = () => {
+//           clearTimeout(timeout);
+//           eventSource.close();
+//           reject(new Error('SSE failed'));
+//         };
+//       });
+//
+//       // Proxy CDN URL through backend to avoid CORS/0kb issues
+//         setProgress('Saving...');
+//             downloadUrl = cdnUrl;
+// //       setProgress('Saving...');
+// //       downloadUrl = `${API}/api/proxy?url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
+//     }
+//
+//     // Download
+// //     if (Capacitor.isNativePlatform()) {
+// //       await Downloader.download({ url: downloadUrl, filename });
+// //     } else {
+// //       const a = document.createElement('a');
+// //       a.href = downloadUrl;
+// //       a.download = filename;
+// //       document.body.appendChild(a);
+// //       a.click();
+// //       document.body.removeChild(a);
+// //     }
+// // Download
+//     if (Capacitor.isNativePlatform()) {
+//       // Native — download directly from CDN
+//       await Downloader.download({ url: downloadUrl, filename });
+//     } else {
+//       // Web — open CDN URL directly in new tab
+//       window.open(downloadUrl, '_blank');
+//     }
+//
+//     setState('done');
+//     setProgress('');
+//     setTimeout(() => setState('idle'), 3000);
+//   } catch (err: any) {
+//     console.error(err);
+//     setState('idle');
+//     setProgress('');
+//     alert(`Download failed: ${err?.message || 'Unknown error'}`);
+//   }
+// };
+
+// const handleDownload = async () => {
+//   if (state === 'loading') return;
+//   setState('loading');
+//   setProgress('');
+//
+//   try {
+//     const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+//     const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.mp4`;
+//
+//     let sseStatusUrl = '';
+//
+//     const isRenderJob = quality.url.includes('render-api') && quality.url.includes('execute');
+//     const isDirectUrl = (quality as any)._type === 'direct' || (quality as any).hashId;
+//
+//     if (isRenderJob) {
+//       // Already has execution URL — trigger directly
+//       setProgress('Starting render...');
+//       const execRes = await fetch(quality.url);
+//       const text = await execRes.text();
+//       let execData;
+//       try { execData = JSON.parse(text); } catch {
+//         throw new Error('Render API invalid response');
+//       }
+//       sseStatusUrl = execData.sseStatusUrl;
+//
+//     } else if (isDirectUrl && (quality as any).hashId) {
+//       // Get render URL on demand via backend
+//       setProgress('Preparing render...');
+//       const renderRes = await fetch(`${API}/api/render`, {
+//         method: 'POST',
+//         headers: { 'Content-Type': 'application/json' },
+//         body: JSON.stringify({
+//           hashId: (quality as any).hashId,
+//           quality: quality.label,
+//         }),
+//       });
+//       const renderData = await renderRes.json();
+//       if (!renderData.sseStatusUrl) throw new Error('Render failed to start');
+//       sseStatusUrl = renderData.sseStatusUrl;
+//
+//     } else {
+//       throw new Error('No valid download method for this quality');
+//     }
+//
+//     if (!sseStatusUrl) throw new Error('No SSE URL');
+//
+//     // Poll SSE
+//     setProgress('Processing...');
+//     const cdnUrl = await new Promise<string>((resolve, reject) => {
+//       const eventSource = new EventSource(sseStatusUrl);
+//       const timeout = setTimeout(() => {
+//         eventSource.close();
+//         reject(new Error('Render timeout'));
+//       }, 120000);
+//
+//       eventSource.onmessage = (event) => {
+//         try {
+//           const data = JSON.parse(event.data);
+//           if (data.status === 'downloading_inputs') setProgress(`Downloading... ${data.progress || 0}%`);
+//           else if (data.status === 'processing') setProgress('Processing...');
+//           else if (data.status === 'uploading_output') setProgress('Finalizing...');
+//           if (data.status === 'done' && data.output?.url) {
+//             clearTimeout(timeout);
+//             eventSource.close();
+//             resolve(data.output.url);
+//           } else if (data.status === 'error' || data.status === 'failed') {
+//             clearTimeout(timeout);
+//             eventSource.close();
+//             reject(new Error('Render failed'));
+//           }
+//         } catch {}
+//       };
+//
+//       eventSource.onerror = () => {
+//         clearTimeout(timeout);
+//         eventSource.close();
+//         reject(new Error('SSE failed'));
+//       };
+//     });
+//
+//     setProgress('Saving...');
+//     if (Capacitor.isNativePlatform()) {
+//       await Downloader.download({ url: cdnUrl, filename });
+//     } else {
+//       window.open(cdnUrl, '_blank');
+//     }
+//
+//     setState('done');
+//     setProgress('');
+//     setTimeout(() => setState('idle'), 3000);
+//   } catch (err: any) {
+//     console.error(err);
+//     setState('idle');
+//     setProgress('');
+//     alert(`Download failed: ${err?.message || 'Unknown error'}`);
+//   }
+// };
+
 const handleDownload = async () => {
   if (state === 'loading') return;
   setState('loading');
@@ -137,14 +330,14 @@ const handleDownload = async () => {
       const text = await execRes.text();
       let execData;
       try { execData = JSON.parse(text); } catch {
-        throw new Error('Render API returned invalid response');
+        throw new Error('Render API invalid response');
       }
 
       const sseUrl = execData.sseStatusUrl;
-      if (!sseUrl) throw new Error('No SSE URL in render response');
+      if (!sseUrl) throw new Error('No SSE URL');
 
-      setProgress('Processing video...');
-      const cdnUrl = await new Promise<string>((resolve, reject) => {
+      setProgress('Processing...');
+      downloadUrl = await new Promise<string>((resolve, reject) => {
         const eventSource = new EventSource(sseUrl);
         const timeout = setTimeout(() => {
           eventSource.close();
@@ -155,9 +348,8 @@ const handleDownload = async () => {
           try {
             const data = JSON.parse(event.data);
             if (data.status === 'downloading_inputs') setProgress(`Downloading... ${data.progress || 0}%`);
-            else if (data.status === 'processing') setProgress(`Processing... ${data.progress || 0}%`);
-            else if (data.status === 'uploading_output') setProgress(`Finalizing...`);
-
+            else if (data.status === 'processing') setProgress('Processing...');
+            else if (data.status === 'uploading_output') setProgress('Finalizing...');
             if (data.status === 'done' && data.output?.url) {
               clearTimeout(timeout);
               eventSource.close();
@@ -173,25 +365,18 @@ const handleDownload = async () => {
         eventSource.onerror = () => {
           clearTimeout(timeout);
           eventSource.close();
-          reject(new Error('SSE connection failed'));
+          reject(new Error('SSE failed'));
         };
       });
-
-      // Proxy CDN URL through backend to avoid CORS/expiry
-      setProgress('Downloading file...');
-      downloadUrl = `${API}/api/proxy?url=${encodeURIComponent(cdnUrl)}&filename=${encodeURIComponent(filename)}`;
     }
 
-    // Download
+    setProgress('Saving...');
+
+    // Download directly
     if (Capacitor.isNativePlatform()) {
       await Downloader.download({ url: downloadUrl, filename });
     } else {
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      window.open(downloadUrl, '_blank');
     }
 
     setState('done');
@@ -204,6 +389,7 @@ const handleDownload = async () => {
     alert(`Download failed: ${err?.message || 'Unknown error'}`);
   }
 };
+
   const isLoading = state === 'loading';
   const isDone = state === 'done';
 

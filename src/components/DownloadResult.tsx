@@ -399,11 +399,14 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
       setProgress('Saving to device...');
       setPercent(98);
 
-      if (Capacitor.isNativePlatform()) {
-        await Downloader.download({ url: downloadUrl, filename });
-      } else {
-        window.open(downloadUrl, '_blank');
-      }
+if (Capacitor.isNativePlatform()) {
+  setProgress('Downloading to device...');
+  // This now waits until download actually completes
+  await Downloader.download({ url: downloadUrl, filename });
+  setProgress('Saved! Check Downloads folder');
+} else {
+  window.open(downloadUrl, '_blank');
+}
 
       setPercent(100);
       setState('done');

@@ -18,6 +18,146 @@ import org.json.JSONArray;
 @CapacitorPlugin(name = "Downloader")
 public class DownloadPlugin extends Plugin {
 
+    @PluginMethod
+    public void download(PluginCall call) {
+        String url = call.getString("url");
+        String filename = call.getString("filename", "video.mp4");
+
+        if (url == null) {
+            call.reject("URL is required");
+            return;
+        }
+
+        call.setKeepAlive(true);
+
+        new Thread(() -> {
+            try {
+                File destDir = Environment.getExternalStoragePublicDirectory(
+                        Environment.DIRECTORY_DOWNLOADS
+                );
+                if (!destDir.exists()) destDir.mkdirs();
+
+                // Delete existing file if any
+                File destFile = new File(destDir, filename);
+                if (destFile.exists()) destFile.delete();
+
+                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
+                request.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+                request.setDescription("Downloading...");
+                request.setNotificationVisibility(
+                        DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                );
+                request.setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS, filename
+                );
+                request.setAllowedOverMetered(true);
+                request.setAllowedOverRoaming(true);
+                request.setMimeType("video/mp4");
+                request.setAllowedNetworkTypes(
+                        DownloadManager.Request.NETWORK_WIFI |
+                                DownloadManager.Request.NETWORK_MOBILE
+                );
+                request.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+                request.addRequestHeader("User-Agent", "Mozilla/5.0");
+
+                DownloadManager dm = (DownloadManager) getContext()
+                        .getSystemService(Context.DOWNLOAD_SERVICE);
+                long downloadId = dm.enqueue(request);
+
+                android.util.Log.d("Downloader", "Download started: " + filename + " id=" + downloadId);
+
+                // Poll until complete
+                boolean downloading = true;
+                int retries = 0;
+                int maxRetries = 3;
+                long currentId = downloadId;
+
+                while (downloading) {
+                    try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+
+                    DownloadManager.Query q = new DownloadManager.Query();
+                    q.setFilterById(currentId);
+                    android.database.Cursor cursor = dm.query(q);
+
+                    if (cursor == null || !cursor.moveToFirst()) {
+                        cursor.close();
+                        downloading = false;
+                        call.reject("Download lost");
+                        break;
+                    }
+
+                    int statusCol = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+                    int reasonCol = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+                    int bytesCol = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR);
+                    int totalCol = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES);
+
+                    int status = cursor.getInt(statusCol);
+                    int reason = cursor.getInt(reasonCol);
+                    long downloaded = cursor.getLong(bytesCol);
+                    long total = cursor.getLong(totalCol);
+                    cursor.close();
+
+                    android.util.Log.d("Downloader", "Status: " + status + " bytes: " + downloaded + "/" + total);
+
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        downloading = false;
+
+                        // Scan file so it appears in gallery
+                        File file = new File(destDir, filename);
+                        MediaScannerConnection.scanFile(
+                                getContext(),
+                                new String[]{ file.getAbsolutePath() },
+                                new String[]{ "video/mp4" },
+                                null
+                        );
+
+                        android.util.Log.d("Downloader", "Download complete: " + filename);
+                        call.resolve();
+
+                    } else if (status == DownloadManager.STATUS_FAILED) {
+                        android.util.Log.e("Downloader", "Download failed reason: " + reason + " retry: " + retries);
+                        dm.remove(currentId);
+
+                        if (retries < maxRetries) {
+                            retries++;
+                            try { Thread.sleep(2000); } catch (InterruptedException e) { break; }
+
+                            // Retry
+                            DownloadManager.Request retryReq = new DownloadManager.Request(Uri.parse(url));
+                            retryReq.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+                            retryReq.setDescription("Retrying... (" + retries + "/" + maxRetries + ")");
+                            retryReq.setNotificationVisibility(
+                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                            );
+                            retryReq.setDestinationInExternalPublicDir(
+                                    Environment.DIRECTORY_DOWNLOADS, filename
+                            );
+                            retryReq.setAllowedOverMetered(true);
+                            retryReq.setAllowedOverRoaming(true);
+                            retryReq.setMimeType("video/mp4");
+                            retryReq.setAllowedNetworkTypes(
+                                    DownloadManager.Request.NETWORK_WIFI |
+                                            DownloadManager.Request.NETWORK_MOBILE
+                            );
+                            retryReq.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+                            retryReq.addRequestHeader("User-Agent", "Mozilla/5.0");
+
+                            currentId = dm.enqueue(retryReq);
+                            android.util.Log.d("Downloader", "Retry enqueued id=" + currentId);
+                        } else {
+                            downloading = false;
+                            call.reject("Download failed after " + maxRetries + " retries");
+                        }
+                    }
+                }
+
+            } catch (Exception e) {
+                android.util.Log.e("Downloader", "Error: " + e.getMessage());
+                call.reject("Download error: " + e.getMessage());
+            }
+        }).start();
+    }
+
 //    @PluginMethod
 //    public void download(PluginCall call) {
 //        String url = call.getString("url");
@@ -29,9 +169,14 @@ public class DownloadPlugin extends Plugin {
 //        }
 //
 //        try {
+//            File destDir = Environment.getExternalStoragePublicDirectory(
+//                    Environment.DIRECTORY_DOWNLOADS
+//            );
+//            if (!destDir.exists()) destDir.mkdirs();
+//
 //            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-//            request.setTitle(filename);
-//            request.setDescription("Downloading via VidSave");
+//            request.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+//            request.setDescription("Downloading via Save It Pro");
 //            request.setNotificationVisibility(
 //                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
 //            );
@@ -42,40 +187,97 @@ public class DownloadPlugin extends Plugin {
 //            request.setAllowedOverRoaming(true);
 //            request.setMimeType("video/mp4");
 //
+//            // Allow downloading over any network
+//            request.setAllowedNetworkTypes(
+//                    DownloadManager.Request.NETWORK_WIFI |
+//                            DownloadManager.Request.NETWORK_MOBILE
+//            );
+//
+//            // Add headers to help with server compatibility
+//            request.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+//            request.addRequestHeader("Connection", "keep-alive");
+//
 //            DownloadManager dm = (DownloadManager) getContext()
 //                    .getSystemService(Context.DOWNLOAD_SERVICE);
 //
 //            long downloadId = dm.enqueue(request);
 //
+//            // Monitor download in background thread
 //            new Thread(() -> {
 //                boolean downloading = true;
+//                int failCount = 0;
+//                int maxRetries = 3;
+//
 //                while (downloading) {
+//                    try {
+//                        Thread.sleep(2000);
+//                    } catch (InterruptedException e) {
+//                        break;
+//                    }
+//
 //                    DownloadManager.Query q = new DownloadManager.Query();
 //                    q.setFilterById(downloadId);
 //                    android.database.Cursor cursor = dm.query(q);
-//                    if (cursor != null && cursor.moveToFirst()) {
-//                        int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-//                        int status = cursor.getInt(statusIndex);
-//                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
-//                            downloading = false;
-//                            File file = new File(
-//                                    Environment.getExternalStoragePublicDirectory(
-//                                            Environment.DIRECTORY_DOWNLOADS), filename
-//                            );
-//                            MediaScannerConnection.scanFile(
-//                                    getContext(),
-//                                    new String[]{ file.getAbsolutePath() },
-//                                    new String[]{ "video/mp4" },
-//                                    (path, uri) -> {}
-//                            );
-//                        } else if (status == DownloadManager.STATUS_FAILED) {
-//                            downloading = false;
-//                        }
-//                        cursor.close();
-//                    } else {
+//
+//                    if (cursor == null || !cursor.moveToFirst()) {
 //                        downloading = false;
+//                        break;
 //                    }
-//                    try { Thread.sleep(1000); } catch (InterruptedException e) { break; }
+//
+//                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+//                    int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
+//                    int status = cursor.getInt(statusIndex);
+//                    int reason = cursor.getInt(reasonIndex);
+//                    cursor.close();
+//
+//                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+//                        downloading = false;
+//                        // Trigger media scan
+//                        File file = new File(destDir, filename);
+//                        MediaScannerConnection.scanFile(
+//                                getContext(),
+//                                new String[]{ file.getAbsolutePath() },
+//                                new String[]{ "video/mp4" },
+//                                null
+//                        );
+//                        android.util.Log.d("Downloader", "Download complete: " + filename);
+//
+//                    } else if (status == DownloadManager.STATUS_FAILED) {
+//                        android.util.Log.e("Downloader", "Download failed, reason: " + reason + " attempt: " + (failCount + 1));
+//                        failCount++;
+//
+//                        if (failCount < maxRetries) {
+//                            // Retry download
+//                            android.util.Log.d("Downloader", "Retrying download...");
+//                            dm.remove(downloadId);
+//                            try { Thread.sleep(2000); } catch (InterruptedException e) { break; }
+//
+//                            DownloadManager.Request retryRequest = new DownloadManager.Request(Uri.parse(url));
+//                            retryRequest.setTitle(filename.replace("_", " ").replace(".mp4", ""));
+//                            retryRequest.setDescription("Retrying download... (" + failCount + "/" + maxRetries + ")");
+//                            retryRequest.setNotificationVisibility(
+//                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+//                            );
+//                            retryRequest.setDestinationInExternalPublicDir(
+//                                    Environment.DIRECTORY_DOWNLOADS, filename
+//                            );
+//                            retryRequest.setAllowedOverMetered(true);
+//                            retryRequest.setAllowedOverRoaming(true);
+//                            retryRequest.setMimeType("video/mp4");
+//                            retryRequest.setAllowedNetworkTypes(
+//                                    DownloadManager.Request.NETWORK_WIFI |
+//                                            DownloadManager.Request.NETWORK_MOBILE
+//                            );
+//                            retryRequest.addRequestHeader("Accept", "video/mp4,video/*,*/*");
+//                            retryRequest.addRequestHeader("Connection", "keep-alive");
+//
+//                            long newId = dm.enqueue(retryRequest);
+//                            android.util.Log.d("Downloader", "Retry enqueued: " + newId);
+//                        } else {
+//                            downloading = false;
+//                            android.util.Log.e("Downloader", "All retries failed for: " + filename);
+//                        }
+//                    }
 //                }
 //            }).start();
 //
@@ -84,135 +286,6 @@ public class DownloadPlugin extends Plugin {
 //            call.reject("Download failed: " + e.getMessage());
 //        }
 //    }
-
-    @PluginMethod
-    public void download(PluginCall call) {
-        String url = call.getString("url");
-        String filename = call.getString("filename", "video.mp4");
-
-        if (url == null) {
-            call.reject("URL is required");
-            return;
-        }
-
-        try {
-            File destDir = Environment.getExternalStoragePublicDirectory(
-                    Environment.DIRECTORY_DOWNLOADS
-            );
-            if (!destDir.exists()) destDir.mkdirs();
-
-            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(url));
-            request.setTitle(filename.replace("_", " ").replace(".mp4", ""));
-            request.setDescription("Downloading via Save It Pro");
-            request.setNotificationVisibility(
-                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-            );
-            request.setDestinationInExternalPublicDir(
-                    Environment.DIRECTORY_DOWNLOADS, filename
-            );
-            request.setAllowedOverMetered(true);
-            request.setAllowedOverRoaming(true);
-            request.setMimeType("video/mp4");
-
-            // Allow downloading over any network
-            request.setAllowedNetworkTypes(
-                    DownloadManager.Request.NETWORK_WIFI |
-                            DownloadManager.Request.NETWORK_MOBILE
-            );
-
-            // Add headers to help with server compatibility
-            request.addRequestHeader("Accept", "video/mp4,video/*,*/*");
-            request.addRequestHeader("Connection", "keep-alive");
-
-            DownloadManager dm = (DownloadManager) getContext()
-                    .getSystemService(Context.DOWNLOAD_SERVICE);
-
-            long downloadId = dm.enqueue(request);
-
-            // Monitor download in background thread
-            new Thread(() -> {
-                boolean downloading = true;
-                int failCount = 0;
-                int maxRetries = 3;
-
-                while (downloading) {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) {
-                        break;
-                    }
-
-                    DownloadManager.Query q = new DownloadManager.Query();
-                    q.setFilterById(downloadId);
-                    android.database.Cursor cursor = dm.query(q);
-
-                    if (cursor == null || !cursor.moveToFirst()) {
-                        downloading = false;
-                        break;
-                    }
-
-                    int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
-                    int reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON);
-                    int status = cursor.getInt(statusIndex);
-                    int reason = cursor.getInt(reasonIndex);
-                    cursor.close();
-
-                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                        downloading = false;
-                        // Trigger media scan
-                        File file = new File(destDir, filename);
-                        MediaScannerConnection.scanFile(
-                                getContext(),
-                                new String[]{ file.getAbsolutePath() },
-                                new String[]{ "video/mp4" },
-                                null
-                        );
-                        android.util.Log.d("Downloader", "Download complete: " + filename);
-
-                    } else if (status == DownloadManager.STATUS_FAILED) {
-                        android.util.Log.e("Downloader", "Download failed, reason: " + reason + " attempt: " + (failCount + 1));
-                        failCount++;
-
-                        if (failCount < maxRetries) {
-                            // Retry download
-                            android.util.Log.d("Downloader", "Retrying download...");
-                            dm.remove(downloadId);
-                            try { Thread.sleep(2000); } catch (InterruptedException e) { break; }
-
-                            DownloadManager.Request retryRequest = new DownloadManager.Request(Uri.parse(url));
-                            retryRequest.setTitle(filename.replace("_", " ").replace(".mp4", ""));
-                            retryRequest.setDescription("Retrying download... (" + failCount + "/" + maxRetries + ")");
-                            retryRequest.setNotificationVisibility(
-                                    DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
-                            );
-                            retryRequest.setDestinationInExternalPublicDir(
-                                    Environment.DIRECTORY_DOWNLOADS, filename
-                            );
-                            retryRequest.setAllowedOverMetered(true);
-                            retryRequest.setAllowedOverRoaming(true);
-                            retryRequest.setMimeType("video/mp4");
-                            retryRequest.setAllowedNetworkTypes(
-                                    DownloadManager.Request.NETWORK_WIFI |
-                                            DownloadManager.Request.NETWORK_MOBILE
-                            );
-                            retryRequest.addRequestHeader("Accept", "video/mp4,video/*,*/*");
-                            retryRequest.addRequestHeader("Connection", "keep-alive");
-
-                            long newId = dm.enqueue(retryRequest);
-                            android.util.Log.d("Downloader", "Retry enqueued: " + newId);
-                        } else {
-                            downloading = false;
-                            android.util.Log.e("Downloader", "All retries failed for: " + filename);
-                        }
-                    }
-                }
-            }).start();
-
-            call.resolve();
-        } catch (Exception e) {
-            call.reject("Download failed: " + e.getMessage());
-        }
-    }
 
     @PluginMethod
     public void scanFile(PluginCall call) {

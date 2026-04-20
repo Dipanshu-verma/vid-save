@@ -65,8 +65,6 @@ export default function Downloader({ downloadState }: DownloaderProps) {
           <p>• <span className="text-red-400 font-medium">YouTube</span> — youtube.com/watch?v=..., youtu.be/...</p>
           <p>• <span className="text-pink-400 font-medium">Instagram</span> — instagram.com/p/..., instagram.com/reel/...</p>
           <p>• <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...</p>
-          <p>• <span className="text-slate-300 font-medium">TikTok</span> — tiktok.com/@.../video/...</p>
-          <p>• <span className="text-sky-400 font-medium">Twitter/X</span> — twitter.com/.../status/...</p>
         </div>
       </div>
     </div>

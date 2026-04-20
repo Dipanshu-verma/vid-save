@@ -6,8 +6,8 @@ const configs: Record<Platform | 'twitter' | 'tiktok', { icon: React.ComponentTy
   instagram: { icon: Instagram, color: 'text-pink-400', bg: 'bg-pink-400/10 border-pink-400/20', label: 'Instagram' },
   facebook: { icon: Facebook, color: 'text-blue-400', bg: 'bg-blue-400/10 border-blue-400/20', label: 'Facebook' },
   whatsapp: { icon: MessageCircle, color: 'text-green-400', bg: 'bg-green-400/10 border-green-400/20', label: 'WhatsApp' },
-  twitter: { icon: Twitter, color: 'text-sky-400', bg: 'bg-sky-400/10 border-sky-400/20', label: 'Twitter/X' },
-  tiktok: { icon: Globe, color: 'text-slate-300', bg: 'bg-slate-300/10 border-slate-300/20', label: 'TikTok' },
+//   twitter: { icon: Twitter, color: 'text-sky-400', bg: 'bg-sky-400/10 border-sky-400/20', label: 'Twitter/X' },
+//   tiktok: { icon: Globe, color: 'text-slate-300', bg: 'bg-slate-300/10 border-slate-300/20', label: 'TikTok' },
 };
 
 interface PlatformBadgeProps {
@@ -39,7 +39,7 @@ export function detectPlatform(url: string): Platform | null {
   if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
   if (lower.includes('instagram.com')) return 'instagram';
   if (lower.includes('facebook.com') || lower.includes('fb.watch')) return 'facebook';
-  if (lower.includes('tiktok.com')) return 'tiktok';
-  if (lower.includes('twitter.com') || lower.includes('x.com')) return 'twitter';
+//   if (lower.includes('tiktok.com')) return 'tiktok';
+//   if (lower.includes('twitter.com') || lower.includes('x.com')) return 'twitter';
   return null;
 }

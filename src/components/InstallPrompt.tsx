@@ -6,14 +6,27 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
+
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
+    // Detect Android
+    const android = /android/i.test(navigator.userAgent);
+    setIsAndroid(android);
+
     const isDismissed = localStorage.getItem('pwa_install_dismissed');
     if (isDismissed) return;
+
+    // Show for Android users always
+    if (android) {
+      setVisible(true);
+      return;
+    }
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -26,12 +39,14 @@ export default function InstallPrompt() {
   }, []);
 
   const handleInstall = async () => {
+    if (isAndroid) {
+      window.open(APK_URL, '_blank');
+      return;
+    }
     if (!deferredPrompt) return;
     await deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setVisible(false);
-    }
+    if (outcome === 'accepted') setVisible(false);
     setDeferredPrompt(null);
   };
 
@@ -50,8 +65,12 @@ export default function InstallPrompt() {
           <Smartphone className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">Install Save It Pro</p>
-          <p className="text-xs text-slate-400">Add to home screen for quick access</p>
+          <p className="text-sm font-semibold text-white">
+            {isAndroid ? 'Get the Android App' : 'Install Save It Pro'}
+          </p>
+          <p className="text-xs text-slate-400">
+            {isAndroid ? 'Download APK for better experience' : 'Add to home screen for quick access'}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
@@ -65,7 +84,7 @@ export default function InstallPrompt() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            Install
+            {isAndroid ? 'Download APK' : 'Install'}
           </button>
         </div>
       </div>

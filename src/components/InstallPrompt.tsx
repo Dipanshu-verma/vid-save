@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -15,14 +16,15 @@ export default function InstallPrompt() {
   const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
-    // Detect Android
+    // Don't show in native APK
+    if (Capacitor.isNativePlatform()) return;
+
     const android = /android/i.test(navigator.userAgent);
     setIsAndroid(android);
 
     const isDismissed = localStorage.getItem('pwa_install_dismissed');
     if (isDismissed) return;
 
-    // Show for Android users always
     if (android) {
       setVisible(true);
       return;
@@ -73,16 +75,10 @@ export default function InstallPrompt() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={handleDismiss}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
-          >
+          <button onClick={handleDismiss} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 transition-colors">
             <X className="w-4 h-4" />
           </button>
-          <button
-            onClick={handleInstall}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold transition-colors"
-          >
+          <button onClick={handleInstall} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold transition-colors">
             <Download className="w-3.5 h-3.5" />
             {isAndroid ? 'Download APK' : 'Install'}
           </button>

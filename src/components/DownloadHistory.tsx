@@ -1,4 +1,4 @@
-import { Clock, Download, RefreshCw, Play, CheckCircle2, XCircle } from 'lucide-react';
+import { Clock, RefreshCw, Play, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import PlatformBadge from './PlatformBadge';
 import type { DownloadRecord } from '../types';
 
@@ -19,10 +19,6 @@ function HistoryItem({ record }: { record: DownloadRecord }) {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
-const handleDownload = () => {
-  if (!record.download_url) return;
-  window.open(record.download_url, '_blank');
-};
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 hover:border-slate-700 transition-all">
       {record.thumbnail_url ? (
@@ -30,9 +26,7 @@ const handleDownload = () => {
           src={record.thumbnail_url}
           alt={record.title}
           className="w-16 h-11 rounded-lg object-cover flex-shrink-0 bg-slate-700"
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
         />
       ) : (
         <div className="w-16 h-11 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
@@ -56,16 +50,7 @@ const handleDownload = () => {
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         {record.status === 'completed' ? (
-          <>
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-400 hidden sm:block" />
-            <button
-              onClick={handleDownload}
-              disabled={!record.download_url}
-              className="p-2 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 transition-colors disabled:opacity-40"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          </>
+          <CheckCircle2 className="w-4 h-4 text-green-400" />
         ) : (
           <XCircle className="w-4 h-4 text-red-400" />
         )}
@@ -75,21 +60,41 @@ const handleDownload = () => {
 }
 
 export default function DownloadHistory({ records, loading, onRefresh }: DownloadHistoryProps) {
+  const handleClear = () => {
+    if (records.length === 0) return;
+    if (!confirm('Clear all download history?')) return;
+    localStorage.removeItem('vidsave_history');
+    onRefresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-white">Download History</h2>
-          <p className="text-xs text-slate-400">{records.length} completed download{records.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-slate-400">
+            {records.length} download{records.length !== 1 ? 's' : ''}
+          </p>
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all border border-slate-700"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-all border border-slate-700"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          {records.length > 0 && (
+            <button
+              onClick={handleClear}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-all border border-red-500/20"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (

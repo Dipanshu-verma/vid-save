@@ -8,6 +8,8 @@ import WhatsAppPage from './pages/WhatsAppPage';
 import DownloadHistory from './components/DownloadHistory';
 import { useHistory } from './hooks/useHistory';
 import { useDownload } from './hooks/useDownload';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import About from './pages/About';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -57,6 +59,10 @@ export default function App() {
             onRefresh={refetch}
           />
         );
+    case 'privacy':
+      return <PrivacyPolicy />;
+    case 'about':
+      return <About />;
       default:
         return <Home onNavigate={handleTabChange} />;
     }

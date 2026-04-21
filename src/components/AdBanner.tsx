@@ -1,40 +1,41 @@
 import { useEffect, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 interface AdBannerProps {
-  slot: string;
-  format?: 'auto' | 'horizontal' | 'rectangle';
-  className?: string;
+  slot?: string;
+  format?: 'auto' | 'rectangle' | 'horizontal';
+  label?: string;
 }
 
-declare global {
-  interface Window {
-    adsbygoogle: unknown[];
-  }
-}
-
-export default function AdBanner({ slot, format = 'auto', className = '' }: AdBannerProps) {
+function AdBanner({
+  slot = '1234567890',
+  format = 'auto',
+  label = 'Advertisement'
+}: AdBannerProps) {
   const adRef = useRef<HTMLModElement>(null);
-  const initialized = useRef(false);
 
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
+    if (Capacitor.isNativePlatform()) return;
     try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (_e) {
-      // AdSense not loaded yet
+      const adsbygoogle = (window as any).adsbygoogle || [];
+      adsbygoogle.push({});
+    } catch (e) {
+      console.error('AdSense error:', e);
     }
   }, []);
 
-  const clientId = import.meta.env.VITE_ADSENSE_CLIENT_ID || 'ca-pub-XXXXXXXXXXXXXXXX';
+  if (Capacitor.isNativePlatform()) return null;
 
   return (
-    <div className={`overflow-hidden ${className}`}>
+    <div className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden">
+      <p className="text-[10px] text-slate-500 uppercase tracking-widest text-center py-1">
+        {label}
+      </p>
       <ins
         ref={adRef}
         className="adsbygoogle"
         style={{ display: 'block' }}
-        data-ad-client={clientId}
+        data-ad-client="ca-pub-9557521405876162"
         data-ad-slot={slot}
         data-ad-format={format}
         data-full-width-responsive="true"
@@ -44,6 +45,10 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
 }
 
 export function AdPlaceholder({ label = 'Advertisement' }: { label?: string }) {
+  if (!Capacitor.isNativePlatform()) {
+    return <AdBanner label={label} />;
+  }
+
   return (
     <div className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl flex items-center justify-center py-4 px-3">
       <div className="text-center">
@@ -53,3 +58,5 @@ export function AdPlaceholder({ label = 'Advertisement' }: { label?: string }) {
     </div>
   );
 }
+
+export default AdBanner;

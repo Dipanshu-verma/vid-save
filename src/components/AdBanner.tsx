@@ -8,7 +8,7 @@ interface AdBannerProps {
 }
 
 function AdBanner({
-  slot = '1234567890',
+  slot = '1045903250',
   format = 'auto',
   label = 'Advertisement'
 }: AdBannerProps) {

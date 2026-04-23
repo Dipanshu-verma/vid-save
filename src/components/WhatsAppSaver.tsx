@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Download, Image, Film, CheckCircle2, X, Play, RefreshCw, FolderOpen, Info } from 'lucide-react';
+import { useToast } from './Toast';
 
 interface MediaFile {
   name: string;
@@ -17,6 +18,7 @@ function formatSize(bytes: number): string {
 
 export default function WhatsAppSaver() {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+const { showError, showSuccess } = useToast();
   const [saved, setSaved] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState<MediaFile | null>(null);
@@ -94,9 +96,10 @@ export default function WhatsAppSaver() {
       }
 
       setSaved(prev => new Set(prev).add(file.name));
+      showSuccess('Status saved to Downloads!');
     } catch (err: any) {
       console.error('Save failed:', err);
-      alert(`Failed to save: ${err?.message || 'Unknown error'}`);
+showError(`Failed to save: ${err?.message || 'Unknown error'}`);
     } finally {
       setSaving(prev => {
         const next = new Set(prev);

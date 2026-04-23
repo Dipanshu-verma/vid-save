@@ -78,11 +78,26 @@ export default function Home({ onNavigate }: HomeProps) {
 
       <AdPlaceholder label="Advertisement" />
 
-      <div className="text-center pt-2">
-        <p className="text-[11px] text-slate-600">
-          Save It Pro respects copyright. Download only content you own or have permission to download.
-        </p>
-      </div>
+   <div className="text-center pt-2 space-y-3">
+     <p className="text-[11px] text-slate-600">
+       Save It Pro respects copyright. Download only content you own or have permission to download.
+     </p>
+     <div className="flex items-center justify-center gap-4">
+       <button
+         onClick={() => onNavigate('about')}
+         className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+       >
+         About
+       </button>
+       <span className="text-slate-700">•</span>
+       <button
+         onClick={() => onNavigate('privacy')}
+         className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+       >
+         Privacy Policy
+       </button>
+     </div>
+   </div>
     </div>
   );
 }

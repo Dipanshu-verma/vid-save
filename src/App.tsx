@@ -10,6 +10,7 @@ import { useHistory } from './hooks/useHistory';
 import { useDownload } from './hooks/useDownload';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import About from './pages/About';
+import { ToastProvider } from './components/Toast';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -32,11 +33,28 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-  useEffect(() => {
+// Add this function before App component
+async function wakeUpServer() {
+  try {
+    const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+    await fetch(`${API}/health`, { signal: AbortSignal.timeout(60000) });
+    console.log('[server] warmed up');
+  } catch {
+    console.log('[server] wake up failed');
+  }
+}
+
+useEffect(() => {
+      wakeUpServer();
+
+  const handleNav = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
     if (tab) setActiveTab(tab);
-  }, []);
+  };
+  window.addEventListener('popstate', handleNav);
+  return () => window.removeEventListener('popstate', handleNav);
+}, []);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -69,13 +87,16 @@ export default function App() {
   };
 
   return (
+      <ToastProvider>
     <div className="min-h-screen bg-slate-900 text-white">
-      <Header />
+      <Header onNavigate={handleTabChange} />
+
       <main className="max-w-2xl mx-auto px-4 pt-5 pb-28">
         {renderContent()}
       </main>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
       <InstallPrompt />
     </div>
+    </ToastProvider>
   );
 }

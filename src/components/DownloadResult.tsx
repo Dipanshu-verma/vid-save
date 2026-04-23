@@ -284,6 +284,7 @@ import { Capacitor } from '@capacitor/core';
 import Downloader from '../plugins/Downloader';
 import type { DownloadResult, DownloadQuality } from '../types';
 import PlatformBadge from './PlatformBadge';
+import { useToast } from './Toast';
 
 function useDownloadKeyframes() {
   useEffect(() => {
@@ -323,6 +324,7 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
   const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
   const [progress, setProgress] = useState<string>('');
   const [percent, setPercent] = useState<number>(0);
+  const { showError, showSuccess } = useToast();
   useDownloadKeyframes();
 
   const handleDownload = async () => {
@@ -409,6 +411,8 @@ if (Capacitor.isNativePlatform()) {
 }
 
       setPercent(100);
+      showSuccess('Saved to Downloads!');
+
       setState('done');
       setProgress('');
       setTimeout(() => setState('idle'), 3000);
@@ -417,7 +421,7 @@ if (Capacitor.isNativePlatform()) {
       setState('idle');
       setProgress('');
       setPercent(0);
-      alert(`Download failed: ${err?.message || 'Unknown error'}`);
+showError(`Download failed: ${err?.message || 'Unknown error'}`);
     }
   };
 

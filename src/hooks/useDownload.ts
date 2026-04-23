@@ -105,13 +105,17 @@ export function useDownload() {
     setResult(null);
     setError(null);
 
+  const slowTimer = setTimeout(() => {
+    setError('Server is starting up, please wait...');
+  }, 8000);
     try {
       const response = await fetch(`${API_URL}/api/download`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
-
+  clearTimeout(slowTimer);
+    setError(null);
       const data = await response.json();
 
       if (!response.ok) {
@@ -144,6 +148,7 @@ export function useDownload() {
       });
 
     } catch (err) {
+            clearTimeout(slowTimer);
       const msg = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(msg);
       setStatus('error');

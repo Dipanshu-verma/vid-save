@@ -76,7 +76,7 @@ export default function Home({ onNavigate }: HomeProps) {
         </div>
       </div>
 
-      <AdPlaceholder label="Advertisement" />
+      <AdPlaceholder label="Advertisement" type="rectangle" />
 
    <div className="text-center pt-2 space-y-3">
      <p className="text-[11px] text-slate-600">

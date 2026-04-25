@@ -26,6 +26,7 @@ function AdBanner({
 
   if (Capacitor.isNativePlatform()) return null;
 
+  // ── Production: render real ad unit ──
   return (
     <div className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden">
       <p className="text-[10px] text-slate-500 uppercase tracking-widest text-center py-1">
@@ -44,16 +45,27 @@ function AdBanner({
   );
 }
 
+// ─── AdPlaceholder ────────────────────────────────────────────────────────────
+
+/**
+ * Visual placeholder shown in dev mode or before AdSense approval.
+ * Styled to match the app's design system.
+ */
 export function AdPlaceholder({ label = 'Advertisement' }: { label?: string }) {
   if (!Capacitor.isNativePlatform()) {
     return <AdBanner label={label} />;
   }
 
   return (
-    <div className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl flex items-center justify-center py-4 px-3">
+    <div
+      aria-hidden="true"
+      className="w-full bg-slate-800/40 border border-dashed border-slate-700/60 rounded-xl flex items-center justify-center py-5 px-3 select-none"
+    >
       <div className="text-center">
-        <p className="text-xs text-slate-500 uppercase tracking-widest font-medium">{label}</p>
-        <p className="text-xs text-slate-600 mt-0.5">Google AdSense</p>
+        <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold">
+          {label}
+        </p>
+        <p className="text-[10px] text-slate-600 mt-0.5">Google AdSense</p>
       </div>
     </div>
   );

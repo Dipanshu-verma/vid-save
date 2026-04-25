@@ -1,8 +1,9 @@
 import { AlertCircle } from 'lucide-react';
 import DownloadForm from '../components/DownloadForm';
 import DownloadResultCard from '../components/DownloadResult';
-import { AdPlaceholder } from '../components/AdBanner';
-import type { useDownload ,UseDownloadReturn} from '../hooks/useDownload';
+import { AdPlaceholder, InterstitialAd } from '../components/AdBanner';
+import type { useDownload, UseDownloadReturn } from '../hooks/useDownload';
+import { useState, useEffect } from 'react';
 
 interface DownloaderProps {
   downloadState: ReturnType<typeof useDownload>;
@@ -15,6 +16,14 @@ interface DownloaderProps {
 
 export default function Downloader({ downloadState }: DownloaderProps) {
   const { status, result, error, fetchDownload, reset } = downloadState;
+  const [showInterstitial, setShowInterstitial] = useState(false);
+
+  // Show interstitial once when download succeeds
+  useEffect(() => {
+    if (status === 'success' && result) {
+      setShowInterstitial(true);
+    }
+  }, [status, result]);
 
   return (
     <div className="space-y-5 pb-4">
@@ -56,7 +65,7 @@ export default function Downloader({ downloadState }: DownloaderProps) {
       )}
 
       {status === 'success' && (
-        <AdPlaceholder label="Advertisement" />
+        <AdPlaceholder label="Advertisement" type="rectangle" />
       )}
 
       <div className="bg-slate-800/50 border border-slate-700/30 rounded-2xl p-4 space-y-2.5">
@@ -67,6 +76,10 @@ export default function Downloader({ downloadState }: DownloaderProps) {
           <p>• <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...</p>
         </div>
       </div>
+      {/* Interstitial overlay — appears once after successful download */}
+      {showInterstitial && (
+        <InterstitialAd onClose={() => setShowInterstitial(false)} />
+      )}
     </div>
   );
 }

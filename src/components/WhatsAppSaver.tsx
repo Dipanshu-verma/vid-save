@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Download, Image, Film, CheckCircle2, X, Play, RefreshCw, FolderOpen, Info } from 'lucide-react';
 import { useToast } from './Toast';
+import AdMob from '../plugins/AdMob';
 
 interface MediaFile {
   name: string;
@@ -97,6 +98,10 @@ const { showError, showSuccess } = useToast();
 
       setSaved(prev => new Set(prev).add(file.name));
       showSuccess('Status saved to Downloads!');
+      try {
+        await AdMob.loadInterstitial();
+        await AdMob.showInterstitial();
+      } catch {}
     } catch (err: any) {
       console.error('Save failed:', err);
 showError(`Failed to save: ${err?.message || 'Unknown error'}`);
@@ -128,12 +133,14 @@ showError(`Failed to save: ${err?.message || 'Unknown error'}`);
         </div>
         <div className="space-y-2">
           {[
-            { n: '1', text: 'Open WhatsApp → view statuses you want to save' },
-            { n: '2', text: 'Open Files app → Internal Storage → Android → media → com.whatsapp → WhatsApp → Media → .Statuses' },
-            { n: '3', text: 'Enable "Show hidden files" in Files app settings if folder is not visible' },
-            { n: '4', text: 'Select files → Copy → Paste to Downloads folder' },
-            { n: '5', text: 'Come back here → tap Select Files → pick from Downloads' },
-          ].map(item => (
+             { n: '1', text: 'Open WhatsApp → view the statuses you want to save' },
+             { n: '2', text: 'Tap Select Files → Files picker will open' },
+             { n: '3', text: 'Tap 3 dots (top right) → select "Browse..."' },
+             { n: '4', text: 'Go to Internal Storage → Android → media → com.whatsapp → WhatsApp → Media → .Statuses' },
+             { n: '5', text: 'Enable "Show hidden files" if .Statuses is not visible' },
+             { n: '6', text: 'Select files → Copy → Paste into Downloads folder' },
+             { n: '7', text: 'Come back → tap Select Files → pick from Downloads' },
+           ].map(item => (
             <div key={item.n} className="flex gap-2.5">
               <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
                 {item.n}

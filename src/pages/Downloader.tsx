@@ -6,11 +6,6 @@ import type { useDownload, UseDownloadReturn } from '../hooks/useDownload';
 import { useState, useEffect } from 'react';
 
 interface DownloaderProps {
-  downloadState: ReturnType<typeof useDownload>;
-}
-
-
-interface DownloaderProps {
   downloadState: UseDownloadReturn;
 }
 

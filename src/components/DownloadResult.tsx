@@ -285,6 +285,7 @@ import Downloader from '../plugins/Downloader';
 import type { DownloadResult, DownloadQuality } from '../types';
 import PlatformBadge from './PlatformBadge';
 import { useToast } from './Toast';
+import AdMob from '../plugins/AdMob';
 
 function useDownloadKeyframes() {
   useEffect(() => {
@@ -406,6 +407,11 @@ if (Capacitor.isNativePlatform()) {
   // This now waits until download actually completes
   await Downloader.download({ url: downloadUrl, filename });
   setProgress('Saved! Check Downloads folder');
+    // Show interstitial ad after download
+    try {
+      await AdMob.loadInterstitial();
+      await AdMob.showInterstitial();
+    } catch {}
 } else {
   window.open(downloadUrl, '_blank');
 }

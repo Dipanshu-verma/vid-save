@@ -11,6 +11,8 @@ import { useDownload } from './hooks/useDownload';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import About from './pages/About';
 import { ToastProvider } from './components/Toast';
+import { Capacitor } from '@capacitor/core';
+import AdMob from './plugins/AdMob';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -46,7 +48,6 @@ async function wakeUpServer() {
 
 useEffect(() => {
       wakeUpServer();
-
   const handleNav = () => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
@@ -91,7 +92,7 @@ useEffect(() => {
     <div className="min-h-screen bg-slate-900 text-white">
       <Header onNavigate={handleTabChange} />
 
-      <main className="max-w-2xl mx-auto px-4 pt-5 pb-28">
+      <main className="max-w-2xl mx-auto px-4 pt-5 pb-36">
         {renderContent()}
       </main>
       <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />

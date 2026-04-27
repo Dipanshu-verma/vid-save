@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
+import AdMob from '../plugins/AdMob';
 
 interface AdBannerProps {
   slot?: string;
@@ -92,6 +93,7 @@ export function InterstitialAd({ onClose }: { onClose: () => void }) {
   const adRef = useRef<HTMLModElement>(null);
   const pushed = useRef(false);
   const [countdown, setCountdown] = useState(5);
+  const isNative = Capacitor.isNativePlatform(); // ← must be FIRST line
 
   // Countdown timer — close button appears when it hits 0
   useEffect(() => {
@@ -99,6 +101,15 @@ export function InterstitialAd({ onClose }: { onClose: () => void }) {
     const t = setTimeout(() => setCountdown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // AdMob interstitial for native
+ useEffect(() => {
+    if (!isNative) return;
+    AdMob.loadInterstitial()
+      .then(() => AdMob.showInterstitial())
+      .catch(() => {})
+      .finally(() => onClose());
+  }, []);
 
   // Push the ad unit once on mount
   useEffect(() => {

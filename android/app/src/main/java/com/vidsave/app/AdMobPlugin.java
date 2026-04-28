@@ -138,6 +138,21 @@ public class AdMobPlugin extends Plugin {
                     @Override
                     public void onAdDismissedFullScreenContent() {
                         interstitialAd = null;
+                        // Auto reload for next time
+                        AdRequest adRequest = new AdRequest.Builder().build();
+                        InterstitialAd.load(getContext(), INTERSTITIAL_ID, adRequest,
+                                new InterstitialAdLoadCallback() {
+                                    @Override
+                                    public void onAdLoaded(InterstitialAd ad) {
+                                        interstitialAd = ad;
+                                        android.util.Log.d("AdMob", "Interstitial reloaded");
+                                    }
+                                    @Override
+                                    public void onAdFailedToLoad(LoadAdError error) {
+                                        interstitialAd = null;
+                                    }
+                                }
+                        );
                         call.resolve();
                     }
                 });

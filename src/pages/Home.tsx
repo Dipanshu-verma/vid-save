@@ -96,6 +96,9 @@ export default function Home({ onNavigate }: HomeProps) {
        >
          Privacy Policy
        </button>
+       <button onClick={() => onNavigate('faq')} className="text-xs text-slate-500 hover:text-slate-300">
+         FAQ
+       </button>
      </div>
    </div>
     </div>

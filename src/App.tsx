@@ -13,6 +13,7 @@ import About from './pages/About';
 import { ToastProvider } from './components/Toast';
 import { Capacitor } from '@capacitor/core';
 import AdMob from './plugins/AdMob';
+import FAQ from './pages/FAQ';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -82,6 +83,8 @@ useEffect(() => {
       return <PrivacyPolicy />;
     case 'about':
       return <About />;
+      case 'faq':
+        return <FAQ />;
       default:
         return <Home onNavigate={handleTabChange} />;
     }

@@ -24,7 +24,7 @@ export default function WhatsAppPage() {
               WhatsApp status saving requires our Android app. Browsers cannot access WhatsApp status folder due to Android security restrictions.
             </p>
           </div>
-          <a>
+          <a
             href="https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk"
             className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
           >

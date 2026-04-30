@@ -2,7 +2,7 @@ import { AlertCircle } from 'lucide-react';
 import DownloadForm from '../components/DownloadForm';
 import DownloadResultCard from '../components/DownloadResult';
 import { AdPlaceholder, InterstitialAd } from '../components/AdBanner';
-import type { useDownload, UseDownloadReturn } from '../hooks/useDownload';
+import type { UseDownloadReturn } from '../hooks/useDownload';
 import { useState, useEffect } from 'react';
 
 interface DownloaderProps {
@@ -13,7 +13,6 @@ export default function Downloader({ downloadState }: DownloaderProps) {
   const { status, result, error, fetchDownload, reset } = downloadState;
   const [showInterstitial, setShowInterstitial] = useState(false);
 
-  // Show interstitial once when download succeeds
   useEffect(() => {
     if (status === 'success' && result) {
       setShowInterstitial(true);
@@ -24,7 +23,9 @@ export default function Downloader({ downloadState }: DownloaderProps) {
     <div className="space-y-5 pb-4">
       <div>
         <h2 className="text-xl font-bold text-white">Video Downloader</h2>
-        <p className="text-sm text-slate-400 mt-0.5">Supports YouTube, Instagram, Facebook & more</p>
+        <p className="text-sm text-slate-400 mt-0.5">
+          Download HD videos from YouTube, Instagram and Facebook — free, fast, no login required.
+        </p>
       </div>
 
       <DownloadForm onSubmit={fetchDownload} status={status} onReset={reset} />
@@ -46,32 +47,38 @@ export default function Downloader({ downloadState }: DownloaderProps) {
           <div className="space-y-2">
             <div className="h-14 rounded-xl bg-slate-800 animate-pulse" />
             <div className="h-14 rounded-xl bg-slate-800 animate-pulse" />
-            <div className="h-14 rounded-xl bg-slate-800 animate-pulse" />
           </div>
         </div>
       )}
 
-      {status !== 'loading' && (
-        <AdPlaceholder label="Advertisement" />
-      )}
-
       {result && status === 'success' && (
-        <DownloadResultCard result={result} />
+        <>
+          <DownloadResultCard result={result} />
+          <AdPlaceholder label="Advertisement" type="rectangle" />
+        </>
       )}
 
-      {status === 'success' && (
-        <AdPlaceholder label="Advertisement" type="rectangle" />
-      )}
-
-      <div className="bg-slate-800/50 border border-slate-700/30 rounded-2xl p-4 space-y-2.5">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Supported Links</p>
-        <div className="space-y-1.5 text-xs text-slate-400 leading-relaxed">
-          <p>• <span className="text-red-400 font-medium">YouTube</span> — youtube.com/watch?v=..., youtu.be/...</p>
-          <p>• <span className="text-pink-400 font-medium">Instagram</span> — instagram.com/p/..., instagram.com/reel/...</p>
-          <p>• <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...</p>
+      {/* Supported links content — always visible */}
+      <div className="bg-slate-800/50 border border-slate-700/30 rounded-2xl p-4 space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">How to Download</p>
+        <div className="space-y-2 text-xs text-slate-400 leading-relaxed">
+          <p>1. Copy the video link from YouTube, Instagram or Facebook</p>
+          <p>2. Paste the URL above and tap Download Video</p>
+          <p>3. Select quality and save to your Downloads folder</p>
+        </div>
+        <div className="border-t border-slate-700/30 pt-3">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Supported Links</p>
+          <div className="space-y-1.5 text-xs text-slate-400">
+            <p>• <span className="text-red-400 font-medium">YouTube</span> — youtube.com/watch?v=..., youtu.be/..., youtube.com/shorts/...</p>
+            <p>• <span className="text-pink-400 font-medium">Instagram</span> — instagram.com/p/..., instagram.com/reel/...</p>
+            <p>• <span className="text-blue-400 font-medium">Facebook</span> — facebook.com/..., fb.watch/...</p>
+          </div>
         </div>
       </div>
-      {/* Interstitial overlay — appears once after successful download */}
+
+      {/* Ad only after content */}
+      {status === 'idle' && <AdPlaceholder label="Advertisement" />}
+
       {showInterstitial && (
         <InterstitialAd onClose={() => setShowInterstitial(false)} />
       )}

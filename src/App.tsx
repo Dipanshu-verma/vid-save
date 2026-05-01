@@ -14,6 +14,7 @@ import { ToastProvider } from './components/Toast';
 import { Capacitor } from '@capacitor/core';
 import AdMob from './plugins/AdMob';
 import FAQ from './pages/FAQ';
+import Blog from './pages/Blog';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -85,6 +86,8 @@ useEffect(() => {
       return <About />;
       case 'faq':
         return <FAQ />;
+        case 'blog':
+            return <Blog onNavigate={handleTabChange} />;
       default:
         return <Home onNavigate={handleTabChange} />;
     }

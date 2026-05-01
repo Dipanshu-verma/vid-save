@@ -138,6 +138,8 @@ export default function Home({ onNavigate }: HomeProps) {
           <button onClick={() => onNavigate('privacy')} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</button>
           <span className="text-slate-700">•</span>
           <button onClick={() => onNavigate('faq')} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">FAQ</button>
+          <span className="text-slate-700">•</span>
+          <button onClick={() => onNavigate('blog')} className="text-xs text-slate-500 hover:text-slate-300 transition-colors">BLOG</button>
         </div>
       </div>
     </div>

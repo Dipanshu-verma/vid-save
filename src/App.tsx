@@ -16,6 +16,55 @@ import AdMob from './plugins/AdMob';
 import FAQ from './pages/FAQ';
 import Blog from './pages/Blog';
 
+// function registerSW() {
+//   if ('serviceWorker' in navigator) {
+//     window.addEventListener('load', () => {
+//       navigator.serviceWorker.register('/sw.js').catch(() => {});
+//     });
+//   }
+// }
+//
+// registerSW();
+//
+// export default function App() {
+//   const [activeTab, setActiveTab] = useState(() => {
+//     const params = new URLSearchParams(window.location.search);
+//     return params.get('tab') || 'home';
+//   });
+//
+//   const { records, loading, refetch } = useHistory();
+//
+//   // Lifted up — persists across tab switches
+//   const downloadState = useDownload();
+//
+// // Add this function before App component
+// async function wakeUpServer() {
+//   try {
+//     const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+//     await fetch(`${API}/health`, { signal: AbortSignal.timeout(60000) });
+//     console.log('[server] warmed up');
+//   } catch {
+//     console.log('[server] wake up failed');
+//   }
+// }
+//
+// useEffect(() => {
+//       wakeUpServer();
+//   const handleNav = () => {
+//     const params = new URLSearchParams(window.location.search);
+//     const tab = params.get('tab');
+//     if (tab) setActiveTab(tab);
+//   };
+//   window.addEventListener('popstate', handleNav);
+//   return () => window.removeEventListener('popstate', handleNav);
+// }, []);
+//
+//   const handleTabChange = (tab: string) => {
+//     setActiveTab(tab);
+//     window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
+//   };
+
+
 function registerSW() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -25,6 +74,17 @@ function registerSW() {
 }
 
 registerSW();
+
+// ── Moved outside component — only defined once, not on every render ──
+async function wakeUpServer() {
+  try {
+    const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
+    await fetch(`${API}/health`, { signal: AbortSignal.timeout(60000) });
+    console.log('[server] warmed up');
+  } catch {
+    console.log('[server] wake up failed');
+  }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
@@ -37,32 +97,23 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-// Add this function before App component
-async function wakeUpServer() {
-  try {
-    const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
-    await fetch(`${API}/health`, { signal: AbortSignal.timeout(60000) });
-    console.log('[server] warmed up');
-  } catch {
-    console.log('[server] wake up failed');
-  }
-}
+  useEffect(() => {
+    wakeUpServer();
 
-useEffect(() => {
-      wakeUpServer();
-  const handleNav = () => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab) setActiveTab(tab);
-  };
-  window.addEventListener('popstate', handleNav);
-  return () => window.removeEventListener('popstate', handleNav);
-}, []);
+    const handleNav = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('popstate', handleNav);
+    return () => window.removeEventListener('popstate', handleNav);
+  }, []);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
   };
+
 
   const renderContent = () => {
     switch (activeTab) {

@@ -9,6 +9,13 @@
     <meta name="description" content="Download videos from Instagram, Facebook, YouTube and save WhatsApp statuses for free." />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9557521405876162"
             crossorigin="anonymous"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/monetag-sw.js')
+            .then(() => console.log('Monetag SW registered'))
+            .catch(err => console.log('Monetag SW error:', err));
+        }
+    </script>
 </head>
 <body>
 <div id="root"></div>

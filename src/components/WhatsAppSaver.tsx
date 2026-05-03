@@ -328,18 +328,18 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// Browser instructions — user needs to manually copy files first
+// Browser steps — uses File System Access API (opens real file browser)
 const BROWSER_STEPS = [
   { n: '1', text: 'Open WhatsApp → view the statuses you want to save' },
-  { n: '2', text: 'Open your phone\'s Files app' },
-  { n: '3', text: 'Go to Internal Storage → Android → media → com.whatsapp → WhatsApp → Media → .Statuses' },
-  { n: '4', text: 'Enable "Show hidden files" if .Statuses folder is not visible' },
-  { n: '5', text: 'Select the files you want → Copy → Paste into Downloads folder' },
-  { n: '6', text: 'Come back here → tap "Select Status Files" → pick from Downloads' },
-  { n: '7', text: 'Tap the download button on each file to save it' },
+  { n: '2', text: 'Open your phone\'s Files app → go to Internal Storage → Android → media → com.whatsapp → WhatsApp → Media → .Statuses' },
+  { n: '3', text: 'Enable "Show hidden files" if .Statuses folder is not visible' },
+  { n: '4', text: 'Select the status files → Copy → Paste into your Downloads folder' },
+  { n: '5', text: 'Come back here → tap "Select Status Files" → it will open your file browser directly' },
+  { n: '6', text: 'Navigate to Downloads folder → select your files' },
+  { n: '7', text: 'Tap download button on each file to save it' },
 ];
 
-// Native APK instructions — direct access
+// Native APK steps — direct .Statuses access
 const NATIVE_STEPS = [
   { n: '1', text: 'Open WhatsApp → view the statuses you want to save' },
   { n: '2', text: 'Tap Select Files → Files picker will open' },
@@ -361,27 +361,32 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
 
   const steps = isNative ? NATIVE_STEPS : BROWSER_STEPS;
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    if (files.length === 0) return;
+  // Convert File[] → MediaFile[] (shared by both picker paths)
+  const processFiles = useCallback((files: File[]) => {
+    const filtered = files.filter(f =>
+      f.type.startsWith('video/') || f.type.startsWith('image/')
+    );
+    if (filtered.length === 0) {
+      setPicked(true);
+      setMediaFiles([]);
+      return;
+    }
 
-    const readers = files
-      .filter(f => f.type.startsWith('video/') || f.type.startsWith('image/'))
-      .map(f => new Promise<MediaFile>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1];
-          resolve({
-            name: f.name,
-            url: URL.createObjectURL(f),
-            type: f.type.startsWith('video/') ? 'video' : 'image',
-            size: formatSize(f.size),
-            base64,
-          });
-        };
-        reader.readAsDataURL(f);
-      }));
+    const readers = filtered.map(f => new Promise<MediaFile>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve({
+          name: f.name,
+          url: URL.createObjectURL(f),
+          type: f.type.startsWith('video/') ? 'video' : 'image',
+          size: formatSize(f.size),
+          base64,
+        });
+      };
+      reader.readAsDataURL(f);
+    }));
 
     Promise.all(readers).then(media => {
       setMediaFiles(media);
@@ -389,8 +394,60 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
       setSaving(new Set());
       setPicked(true);
     });
-    e.target.value = '';
   }, []);
+
+  // Main pick handler — uses File System Access API on browser (opens real file manager)
+  // Falls back to regular <input> if API not supported
+  const handlePickFiles = useCallback(async () => {
+    const supportsFilePicker =
+      typeof (window as any).showOpenFilePicker === 'function';
+
+    // Use File System Access API on web — opens actual file browser not Google Photos
+    if (!isNative && supportsFilePicker) {
+      try {
+        const fileHandles = await (window as any).showOpenFilePicker({
+          multiple: true,
+          // Start in Downloads folder — exactly where user copied their statuses
+          startIn: 'downloads',
+          excludeAcceptAllOption: false,
+          types: [
+            {
+              description: 'Videos and Images',
+              accept: {
+                'video/mp4': ['.mp4'],
+                'video/3gpp': ['.3gp'],
+                'video/quicktime': ['.mov'],
+                'image/jpeg': ['.jpg', '.jpeg'],
+                'image/png': ['.png'],
+                'image/webp': ['.webp'],
+              },
+            },
+          ],
+        });
+
+        const files: File[] = await Promise.all(
+          fileHandles.map((handle: any) => handle.getFile())
+        );
+        processFiles(files);
+        return;
+      } catch (err: any) {
+        // User cancelled — do nothing
+        if (err?.name === 'AbortError') return;
+        // API failed (older Chrome) — fall through to input fallback
+        console.warn('[FilePicker] showOpenFilePicker failed, using input fallback:', err?.message);
+      }
+    }
+
+    // Fallback for native APK and older browsers
+    inputRef.current?.click();
+  }, [isNative, processFiles]);
+
+  // Fallback for regular <input type="file">
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    processFiles(files);
+    e.target.value = '';
+  }, [processFiles]);
 
   const saveFile = useCallback(async (file: MediaFile) => {
     if (saving.has(file.name) || saved.has(file.name)) return;
@@ -433,14 +490,45 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
         } catch {}
 
       } else {
-        // Web browser — trigger native browser download dialog
-        const a = document.createElement('a');
-        a.href = file.url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        showSuccess('Status downloaded!');
+        // Web browser — try File System Access API save first (best UX)
+        // Falls back to anchor download
+        const supportsFileSave =
+          typeof (window as any).showSaveFilePicker === 'function';
+
+        if (supportsFileSave) {
+          try {
+            const ext2 = file.type === 'video' ? 'mp4' : 'jpg';
+            const fileHandle = await (window as any).showSaveFilePicker({
+              suggestedName: filename,
+              types: [
+                {
+                  description: file.type === 'video' ? 'Video file' : 'Image file',
+                  accept: file.type === 'video'
+                    ? { 'video/mp4': ['.mp4'] }
+                    : { 'image/jpeg': ['.jpg'] },
+                },
+              ],
+            });
+            const writable = await fileHandle.createWritable();
+            const response = await fetch(file.url);
+            const blob = await response.blob();
+            await writable.write(blob);
+            await writable.close();
+            showSuccess('Status saved!');
+          } catch (saveErr: any) {
+            if (saveErr?.name === 'AbortError') {
+              setSaving(prev => { const n = new Set(prev); n.delete(file.name); return n; });
+              return;
+            }
+            // Fall back to anchor download
+            triggerAnchorDownload(file.url, filename);
+            showSuccess('Status downloaded!');
+          }
+        } else {
+          // Anchor download fallback
+          triggerAnchorDownload(file.url, filename);
+          showSuccess('Status downloaded!');
+        }
       }
 
       setSaved(prev => new Set(prev).add(file.name));
@@ -468,7 +556,7 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
 
   return (
     <div className="space-y-4">
-      {/* Instructions — different for browser vs native */}
+      {/* Instructions */}
       <div className="rounded-2xl bg-slate-800/60 border border-slate-700/40 p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-green-400 flex-shrink-0" />
@@ -490,18 +578,19 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
 
       {/* Pick button */}
       <button
-        onClick={() => inputRef.current?.click()}
+        onClick={handlePickFiles}
         className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 active:scale-[0.98] text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
       >
         <FolderOpen className="w-4 h-4" />
         Select Status Files
       </button>
 
+      {/* Hidden fallback input for native + older browsers */}
       <input
         ref={inputRef}
         type="file"
         multiple
-        accept="video/*,image/*"
+        accept="video/mp4,video/3gpp,video/quicktime,image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={handleFileInput}
       />
@@ -640,4 +729,14 @@ export default function WhatsAppSaver({ isNative = false }: WhatsAppSaverProps) 
       )}
     </div>
   );
+}
+
+// Helper — anchor download fallback
+function triggerAnchorDownload(url: string, filename: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

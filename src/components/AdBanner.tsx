@@ -57,29 +57,45 @@ function AdBanner({
  * Visual placeholder shown in dev mode or before AdSense approval.
  * Styled to match the app's design system.
  */
-export function AdPlaceholder({ label = 'Advertisement', type = 'banner' }: { label?: string; type?: 'banner' | 'rectangle' }) {
+// export function AdPlaceholder({ label = 'Advertisement', type = 'banner' }: { label?: string; type?: 'banner' | 'rectangle' }) {
+//   const slot = type === 'rectangle' ? SLOT_RECTANGLE : SLOT_BANNER;
+//
+//   if (!Capacitor.isNativePlatform()) {
+//     return <AdBanner slot={slot} label={label} />;
+//   }
+//
+//   return (
+//     <div
+//       aria-hidden="true"
+//       className="w-full bg-slate-800/40 border border-dashed border-slate-700/60 rounded-xl flex items-center justify-center py-5 px-3 select-none"
+//     >
+//       <div className="text-center">
+//         <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold">
+//           {label}
+//         </p>
+//         <p className="text-[10px] text-slate-600 mt-0.5">Google AdSense</p>
+//       </div>
+//     </div>
+//   );
+// }
+//
+// export default AdBanner;
+
+export function AdPlaceholder({
+  label = 'Advertisement',
+  type = 'banner'
+}: {
+  label?: string;
+  type?: 'banner' | 'rectangle'
+}) {
   const slot = type === 'rectangle' ? SLOT_RECTANGLE : SLOT_BANNER;
 
-  if (!Capacitor.isNativePlatform()) {
-    return <AdBanner slot={slot} label={label} />;
-  }
+  // On native — return nothing, Monetag banner handles it via Android WebView
+  if (Capacitor.isNativePlatform()) return null;
 
-  return (
-    <div
-      aria-hidden="true"
-      className="w-full bg-slate-800/40 border border-dashed border-slate-700/60 rounded-xl flex items-center justify-center py-5 px-3 select-none"
-    >
-      <div className="text-center">
-        <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold">
-          {label}
-        </p>
-        <p className="text-[10px] text-slate-600 mt-0.5">Google AdSense</p>
-      </div>
-    </div>
-  );
+  // On web — show real AdSense
+  return <AdBanner slot={slot} label={label} />;
 }
-
-export default AdBanner;
 
 // ─── InterstitialAd ───────────────────────────────────────────────────────────
 

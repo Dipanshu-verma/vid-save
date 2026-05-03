@@ -96,15 +96,39 @@ const { showError, showSuccess } = useToast();
         document.body.removeChild(a);
       }
 
-      setSaved(prev => new Set(prev).add(file.name));
+//       setSaved(prev => new Set(prev).add(file.name));
+//       showSuccess('Status saved to Downloads!');
+//       try {
+//         await AdMob.loadInterstitial();
+//         await AdMob.showInterstitial();
+//       } catch {}
+//     } catch (err: any) {
+//       console.error('Save failed:', err);
+// showError(`Failed to save: ${err?.message || 'Unknown error'}`);
+//     } finally {
+//       setSaving(prev => {
+//         const next = new Set(prev);
+//         next.delete(file.name);
+//         return next;
+//       });
+//     }
+//   }, [saving, saved]);
+
+setSaved(prev => new Set(prev).add(file.name));
       showSuccess('Status saved to Downloads!');
       try {
         await AdMob.loadInterstitial();
         await AdMob.showInterstitial();
-      } catch {}
+      } catch {
+        // AdMob failed — Monetag fallback
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({ url: 'https://omg10.com/4/10957102' });
+        } catch {}
+      }
     } catch (err: any) {
       console.error('Save failed:', err);
-showError(`Failed to save: ${err?.message || 'Unknown error'}`);
+      showError(`Failed to save: ${err?.message || 'Unknown error'}`);
     } finally {
       setSaving(prev => {
         const next = new Set(prev);

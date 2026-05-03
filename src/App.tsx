@@ -97,23 +97,56 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-  useEffect(() => {
-    wakeUpServer();
+//   useEffect(() => {
+//     wakeUpServer();
+//
+//     const handleNav = () => {
+//       const params = new URLSearchParams(window.location.search);
+//       const tab = params.get('tab');
+//       if (tab) setActiveTab(tab);
+//     };
+//     window.addEventListener('popstate', handleNav);
+//     return () => window.removeEventListener('popstate', handleNav);
+//   }, []);
 
-    const handleNav = () => {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (tab) setActiveTab(tab);
-    };
-    window.addEventListener('popstate', handleNav);
-    return () => window.removeEventListener('popstate', handleNav);
-  }, []);
+useEffect(() => {
+  wakeUpServer();
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
+  // Show banner on initial tab if applicable
+  if (Capacitor.isNativePlatform()) {
+    const bannerTabs = ['downloader', 'whatsapp'];
+    if (bannerTabs.includes(activeTab)) {
+      AdMob.showMonatagBanner().catch(() => {});
+    }
+  }
+
+  const handleNav = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) setActiveTab(tab);
   };
+  window.addEventListener('popstate', handleNav);
+  return () => window.removeEventListener('popstate', handleNav);
+}, []);
 
+//   const handleTabChange = (tab: string) => {
+//     setActiveTab(tab);
+//     window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
+//   };
+
+const handleTabChange = (tab: string) => {
+  setActiveTab(tab);
+  window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
+
+  if (Capacitor.isNativePlatform()) {
+    const bannerTabs = ['downloader', 'whatsapp'];
+    if (bannerTabs.includes(tab)) {
+      AdMob.showMonatagBanner().catch(() => {});
+    } else {
+      AdMob.hideMonatagBanner().catch(() => {});
+    }
+  }
+};
 
   const renderContent = () => {
     switch (activeTab) {

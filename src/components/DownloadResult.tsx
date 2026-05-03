@@ -402,18 +402,37 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
       setProgress('Saving to device...');
       setPercent(98);
 
+// if (Capacitor.isNativePlatform()) {
+//   setProgress('Downloading to device...');
+//   // This now waits until download actually completes
+//   await Downloader.download({ url: downloadUrl, filename });
+//   setProgress('Saved! Check Downloads folder');
+//     // Show interstitial ad after download
+//     try {
+//       await AdMob.loadInterstitial();
+//       await AdMob.showInterstitial();
+//     } catch {}
+// } else {
+//   window.open(downloadUrl, '_blank');
+// }
+
+// In QualityButton handleDownload
+const MONETAG_URL = 'https://omg10.com/4/10957102';
+// const MONETAG_URL = 'https://omg10.com/4/10945838';
 if (Capacitor.isNativePlatform()) {
   setProgress('Downloading to device...');
-  // This now waits until download actually completes
   await Downloader.download({ url: downloadUrl, filename });
   setProgress('Saved! Check Downloads folder');
-    // Show interstitial ad after download
-    try {
-      await AdMob.loadInterstitial();
-      await AdMob.showInterstitial();
-    } catch {}
-} else {
-  window.open(downloadUrl, '_blank');
+
+  // Try AdMob first, fallback to Monetag
+  try {
+    await AdMob.loadInterstitial();
+    await AdMob.showInterstitial();
+  } catch {
+    // AdMob failed/limited — open Monetag direct link
+    const { Browser } = await import('@capacitor/browser');
+    await Browser.open({ url: MONETAG_URL });
+  }
 }
 
       setPercent(100);

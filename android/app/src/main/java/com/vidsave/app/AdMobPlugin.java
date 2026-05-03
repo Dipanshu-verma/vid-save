@@ -162,4 +162,16 @@ public class AdMobPlugin extends Plugin {
             }
         });
     }
+
+    @PluginMethod
+    public void showMonatagBanner(PluginCall call) {
+        ((MainActivity) getActivity()).showMonatagBanner();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void hideMonatagBanner(PluginCall call) {
+        ((MainActivity) getActivity()).hideMonatagBanner();
+        call.resolve();
+    }
 }

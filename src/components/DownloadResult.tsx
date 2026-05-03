@@ -417,7 +417,8 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
 // }
 
 // In QualityButton handleDownload
-const MONETAG_URL = 'https://omg10.com/4/10957102';
+import { MONETAG_VIDEO_DOWNLOAD } from '../lib/constants';
+
 // const MONETAG_URL = 'https://omg10.com/4/10945838';
 if (Capacitor.isNativePlatform()) {
   setProgress('Downloading to device...');
@@ -431,7 +432,7 @@ if (Capacitor.isNativePlatform()) {
   } catch {
     // AdMob failed/limited — open Monetag direct link
     const { Browser } = await import('@capacitor/browser');
-    await Browser.open({ url: MONETAG_URL });
+    await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
   }
 }
 

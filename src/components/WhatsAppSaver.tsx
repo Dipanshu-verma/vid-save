@@ -113,6 +113,7 @@ const { showError, showSuccess } = useToast();
 //       });
 //     }
 //   }, [saving, saved]);
+import { MONETAG_WHATSAPP_SAVE } from '../lib/constants';
 
 setSaved(prev => new Set(prev).add(file.name));
       showSuccess('Status saved to Downloads!');
@@ -123,7 +124,7 @@ setSaved(prev => new Set(prev).add(file.name));
         // AdMob failed — Monetag fallback
         try {
           const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: 'https://omg10.com/4/10957102' });
+          await Browser.open({ url:MONETAG_WHATSAPP_SAVE });
         } catch {}
       }
     } catch (err: any) {

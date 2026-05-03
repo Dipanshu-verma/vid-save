@@ -97,83 +97,23 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-//   useEffect(() => {
-//     wakeUpServer();
-//
-//     const handleNav = () => {
-//       const params = new URLSearchParams(window.location.search);
-//       const tab = params.get('tab');
-//       if (tab) setActiveTab(tab);
-//     };
-//     window.addEventListener('popstate', handleNav);
-//     return () => window.removeEventListener('popstate', handleNav);
-//   }, []);
+  useEffect(() => {
+    wakeUpServer();
 
-useEffect(() => {
-  // Only load Monetag on web — never on native
-  if (!Capacitor.isNativePlatform()) {
-    // Small delay to ensure page is ready
-    setTimeout(() => {
-      // OnClick zone 1
-      const s1 = document.createElement('script');
-      s1.src = 'https://quge5.com/88/tag.min.js';
-      s1.dataset.zone = '235122';
-      s1.async = true;
-      s1.dataset.cfasync = 'false';
-      document.head.appendChild(s1);
+    const handleNav = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) setActiveTab(tab);
+    };
+    window.addEventListener('popstate', handleNav);
+    return () => window.removeEventListener('popstate', handleNav);
+  }, []);
 
-      // OnClick zone 2
-      (function(s: HTMLScriptElement) {
-        s.dataset.zone = '10948758';
-        s.src = 'https://al5sm.com/tag.min.js';
-      })(
-        ([document.documentElement, document.body]
-          .filter(Boolean)
-          .pop()!
-          .appendChild(document.createElement('script'))) as HTMLScriptElement
-      );
-    }, 2000);
-  }
-}, []);
-
-useEffect(() => {
-  wakeUpServer();
-
-  // Show banner on initial tab if applicable
-  if (Capacitor.isNativePlatform()) {
-    const bannerTabs = ['downloader', 'whatsapp'];
-    if (bannerTabs.includes(activeTab)) {
-      AdMob.showMonatagBanner().catch(() => {});
-    }
-  }
-
-  const handleNav = () => {
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get('tab');
-    if (tab) setActiveTab(tab);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
   };
-  window.addEventListener('popstate', handleNav);
-  return () => window.removeEventListener('popstate', handleNav);
-}, []);
 
-//   const handleTabChange = (tab: string) => {
-//     setActiveTab(tab);
-//     window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
-//   };
-
-const handleTabChange = (tab: string) => {
-  setActiveTab(tab);
-  window.history.replaceState(null, '', tab === 'home' ? '/' : `/?tab=${tab}`);
-
-  if (Capacitor.isNativePlatform()) {
-    const bannerTabs = ['downloader', 'whatsapp'];
-    if (bannerTabs.includes(tab)) {
-      AdMob.showMonatagBanner().catch(() => {});
-    } else {
-      AdMob.hideMonatagBanner().catch(() => {});
-    }
-  }
-};
 
   const renderContent = () => {
     switch (activeTab) {

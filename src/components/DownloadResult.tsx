@@ -286,6 +286,7 @@ import type { DownloadResult, DownloadQuality } from '../types';
 import PlatformBadge from './PlatformBadge';
 import { useToast } from './Toast';
 import AdMob from '../plugins/AdMob';
+import { MONETAG_VIDEO_DOWNLOAD } from '../lib/constants';
 
 function useDownloadKeyframes() {
   useEffect(() => {
@@ -417,7 +418,6 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
 // }
 
 // In QualityButton handleDownload
-import { MONETAG_VIDEO_DOWNLOAD } from '../lib/constants';
 
 // const MONETAG_URL = 'https://omg10.com/4/10945838';
 if (Capacitor.isNativePlatform()) {

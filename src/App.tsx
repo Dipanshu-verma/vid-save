@@ -110,6 +110,33 @@ export default function App() {
 //   }, []);
 
 useEffect(() => {
+  // Only load Monetag on web — never on native
+  if (!Capacitor.isNativePlatform()) {
+    // Small delay to ensure page is ready
+    setTimeout(() => {
+      // OnClick zone 1
+      const s1 = document.createElement('script');
+      s1.src = 'https://quge5.com/88/tag.min.js';
+      s1.dataset.zone = '235122';
+      s1.async = true;
+      s1.dataset.cfasync = 'false';
+      document.head.appendChild(s1);
+
+      // OnClick zone 2
+      (function(s: HTMLScriptElement) {
+        s.dataset.zone = '10948758';
+        s.src = 'https://al5sm.com/tag.min.js';
+      })(
+        ([document.documentElement, document.body]
+          .filter(Boolean)
+          .pop()!
+          .appendChild(document.createElement('script'))) as HTMLScriptElement
+      );
+    }, 2000);
+  }
+}, []);
+
+useEffect(() => {
   wakeUpServer();
 
   // Show banner on initial tab if applicable

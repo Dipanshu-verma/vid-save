@@ -64,7 +64,7 @@ import type { DownloadResult, DownloadStatus } from '../types';
 import { addToHistory } from '../lib/storage';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-x
+
 export function useDownload() {
   const [status, setStatus] = useState<DownloadStatus>('idle');
   const [result, setResult] = useState<DownloadResult | null>(null);

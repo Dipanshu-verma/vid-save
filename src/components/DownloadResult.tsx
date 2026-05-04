@@ -434,7 +434,10 @@ if (Capacitor.isNativePlatform()) {
     const { Browser } = await import('@capacitor/browser');
     await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
   }
-}
+}else {
+   // Web — open download URL in new tab
+   window.open(downloadUrl, '_blank');
+ }
 
       setPercent(100);
       showSuccess('Saved to Downloads!');

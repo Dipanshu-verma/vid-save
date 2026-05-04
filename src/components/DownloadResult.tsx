@@ -434,9 +434,24 @@ if (Capacitor.isNativePlatform()) {
     const { Browser } = await import('@capacitor/browser');
     await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
   }
-}else {
-   // Web — open download URL in new tab
-   window.open(downloadUrl, '_blank');
+} else {
+   // Web — force download via anchor tag
+   try {
+     setProgress('Downloading...');
+     const response = await fetch(downloadUrl);
+     const blob = await response.blob();
+     const blobUrl = URL.createObjectURL(blob);
+     const a = document.createElement('a');
+     a.href = blobUrl;
+     a.download = filename;
+     document.body.appendChild(a);
+     a.click();
+     document.body.removeChild(a);
+     setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+   } catch {
+     // Fallback if blob fetch fails (CORS) — open in new tab
+     window.open(downloadUrl, '_blank');
+   }
  }
 
       setPercent(100);

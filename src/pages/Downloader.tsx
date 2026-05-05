@@ -11,13 +11,13 @@ interface DownloaderProps {
 
 export default function Downloader({ downloadState }: DownloaderProps) {
   const { status, result, error, fetchDownload, reset } = downloadState;
-  const [showInterstitial, setShowInterstitial] = useState(false);
+//   const [showInterstitial, setShowInterstitial] = useState(false);
 
-  useEffect(() => {
-    if (status === 'success' && result) {
-      setShowInterstitial(true);
-    }
-  }, [status, result]);
+//   useEffect(() => {
+//     if (status === 'success' && result) {
+//       setShowInterstitial(true);
+//     }
+//   }, [status, result]);
 
   return (
     <div className="space-y-5 pb-4">
@@ -79,9 +79,9 @@ export default function Downloader({ downloadState }: DownloaderProps) {
       {/* Ad only after content */}
       {status === 'idle' && <AdPlaceholder label="Advertisement" />}
 
-      {showInterstitial && (
-        <InterstitialAd onClose={() => setShowInterstitial(false)} />
-      )}
+//       {showInterstitial && (
+//         <InterstitialAd onClose={() => setShowInterstitial(false)} />
+//       )}
     </div>
   );
 }

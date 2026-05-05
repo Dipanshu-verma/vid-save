@@ -75,13 +75,14 @@ export default function Downloader({ downloadState }: DownloaderProps) {
           </div>
         </div>
       </div>
-
+ {status === 'idle' && <AdPlaceholder label="Advertisement" />}
       {/* Ad only after content */}
-      {status === 'idle' && <AdPlaceholder label="Advertisement" />}
 
-//       {showInterstitial && (
-//         <InterstitialAd onClose={() => setShowInterstitial(false)} />
-//       )}
+{/*
+      {showInterstitial && (
+        <InterstitialAd onClose={() => setShowInterstitial(false)} />
+      )}
+   */}
     </div>
   );
 }

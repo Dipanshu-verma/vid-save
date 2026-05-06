@@ -24,6 +24,17 @@ export function addToHistory(record: Omit<DownloadRecord, 'id' | 'created_at'>):
   return newRecord;
 }
 
+export function updateLatestHistoryFilename(title: string, filename: string): void {
+  try {
+    const records = getHistory();
+    const idx = records.findIndex(r => r.title === title);
+    if (idx !== -1) {
+      records[idx].filename = filename;
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(records));
+    }
+  } catch {}
+}
+
 export function clearHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
 }

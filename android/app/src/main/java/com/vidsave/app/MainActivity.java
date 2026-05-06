@@ -59,6 +59,8 @@ public class MainActivity extends BridgeActivity {
                         // Block Monetag ad scripts from loading at all
                         if (host.contains("quge5.com") ||
                                 host.contains("al5sm.com") ||
+                                host.contains("nap5k.com") ||        // ← new
+                                host.contains("n6wxm.com") ||        // ← new
                                 host.contains("monetag") ||
                                 host.contains("ppopo.com") ||
                                 host.contains("puckseychavish") ||

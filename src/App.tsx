@@ -15,7 +15,7 @@ import { Capacitor } from '@capacitor/core';
 import AdMob from './plugins/AdMob';
 import FAQ from './pages/FAQ';
 import Blog from './pages/Blog';
-
+import { MONETAG_VIDEO_DOWNLOAD } from './lib/constants';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -49,17 +49,44 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-  useEffect(() => {
-    wakeUpServer();
+//   useEffect(() => {
+//     wakeUpServer();
+//
+//     const handleNav = () => {
+//       const params = new URLSearchParams(window.location.search);
+//       const tab = params.get('tab');
+//       if (tab) setActiveTab(tab);
+//     };
+//     window.addEventListener('popstate', handleNav);
+//     return () => window.removeEventListener('popstate', handleNav);
+//   }, []);
 
-    const handleNav = () => {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (tab) setActiveTab(tab);
-    };
-    window.addEventListener('popstate', handleNav);
-    return () => window.removeEventListener('popstate', handleNav);
-  }, []);
+useEffect(() => {
+  wakeUpServer();
+
+  // Show ONE ad on app start — only on native
+  if (Capacitor.isNativePlatform()) {
+    setTimeout(async () => {
+      try {
+        await AdMob.loadInterstitial();
+        await AdMob.showInterstitial();
+      } catch {
+        try {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
+        } catch {}
+      }
+    }, 500); // 3 second delay after app opens
+  }
+
+  const handleNav = () => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab) setActiveTab(tab);
+  };
+  window.addEventListener('popstate', handleNav);
+  return () => window.removeEventListener('popstate', handleNav);
+}, []);
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);

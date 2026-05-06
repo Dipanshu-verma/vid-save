@@ -27,6 +27,7 @@ export interface DownloadRecord {
   title: string;
   thumbnail_url: string;
   download_url: string;
+   filename?: string;
   quality: string;
   file_size: number;
   status: string;

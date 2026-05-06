@@ -1,5 +1,7 @@
 import { Clock, RefreshCw, Play, CheckCircle2, XCircle, Trash2 } from 'lucide-react';
 import PlatformBadge from './PlatformBadge';
+import { Capacitor } from '@capacitor/core';
+import { useToast } from './Toast';
 import type { DownloadRecord } from '../types';
 
 interface DownloadHistoryProps {
@@ -9,6 +11,8 @@ interface DownloadHistoryProps {
 }
 
 function HistoryItem({ record }: { record: DownloadRecord }) {
+  const { showError } = useToast();
+
   const timeAgo = (date: string) => {
     const diff = Date.now() - new Date(date).getTime();
     const mins = Math.floor(diff / 60000);
@@ -19,6 +23,27 @@ function HistoryItem({ record }: { record: DownloadRecord }) {
     return `${Math.floor(hrs / 24)}d ago`;
   };
 
+  const handlePlay = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const Downloader = (await import('../plugins/Downloader')).default;
+
+        // Use stored filename if available, otherwise reconstruct
+        const filename = record.filename || `${(record.title || 'video')
+          .replace(/[^a-zA-Z0-9]/g, '_')
+          .slice(0, 50)}_${(record.quality || 'video')
+          .replace(/\s+/g, '_')}.mp4`;
+
+        await Downloader.openDownloadedFile({ filename });
+      } catch {
+        showError('Video not found in Downloads');
+      }
+    } else {
+      if (record.download_url) {
+        window.open(record.download_url, '_blank');
+      }
+    }
+  };
   return (
     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700/30 hover:border-slate-700 transition-all">
       {record.thumbnail_url ? (
@@ -33,6 +58,7 @@ function HistoryItem({ record }: { record: DownloadRecord }) {
           <Play className="w-5 h-5 text-slate-500" />
         </div>
       )}
+
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-white truncate leading-tight">
           {record.title || 'Untitled Video'}
@@ -48,11 +74,21 @@ function HistoryItem({ record }: { record: DownloadRecord }) {
           )}
         </div>
       </div>
+
       <div className="flex items-center gap-2 flex-shrink-0">
         {record.status === 'completed' ? (
           <CheckCircle2 className="w-4 h-4 text-green-400" />
         ) : (
           <XCircle className="w-4 h-4 text-red-400" />
+        )}
+
+        {record.status === 'completed' && (
+          <button
+            onClick={handlePlay}
+            className="p-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-400 transition-all active:scale-90"
+          >
+            <Play className="w-3.5 h-3.5 fill-current" />
+          </button>
         )}
       </div>
     </div>

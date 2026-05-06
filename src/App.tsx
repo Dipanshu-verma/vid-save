@@ -59,10 +59,13 @@ useEffect(() => {
         await AdMob.loadInterstitial();
         await AdMob.showInterstitial();
       } catch {
-        try {
-          const { Browser } = await import('@capacitor/browser');
-          await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
-        } catch {}
+//         try {
+//           const { Browser } = await import('@capacitor/browser');
+//           await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
+//         } catch {}
+try {
+        await AdMob.showMonatagInterstitial({ url: MONETAG_VIDEO_DOWNLOAD });
+      } catch {}
       }
     }, 500);
   }

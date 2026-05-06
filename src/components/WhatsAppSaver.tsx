@@ -11,10 +11,12 @@ interface StatusFile {
   name: string;
   type: 'video' | 'image';
   size: number;
-    thumbnail?: string;
+  path?: string;
+  thumbnail?: string;
 }
 
 const STORAGE_KEY = 'wa_status_uri';
+const STORAGE_DIRECT_KEY = 'wa_status_direct'; // ← for direct access phones
 
 export default function WhatsAppSaver() {
 const [statusUri, setStatusUri] = useState<string | null>(() => {
@@ -27,19 +29,41 @@ const [statusUri, setStatusUri] = useState<string | null>(() => {
   const [loading, setLoading] = useState(false);
   const { showError, showSuccess } = useToast();
 
-  const loadStatuses = useCallback(async (uri: string) => {
-    setLoading(true);
-    try {
-      const Downloader = (await import('../plugins/Downloader')).default;
+//   const loadStatuses = useCallback(async (uri: string) => {
+//     setLoading(true);
+//     try {
+//       const Downloader = (await import('../plugins/Downloader')).default;
+//       const result = await Downloader.getStatuses({ uri });
+//       const parsed: StatusFile[] = JSON.parse(result.files);
+//       setFiles(parsed.reverse()); // newest first
+//     } catch (e: any) {
+//       showError('Failed to load statuses: ' + e.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [showError]);
+
+const loadStatuses = useCallback(async (uri?: string) => {
+  setLoading(true);
+  try {
+    const Downloader = (await import('../plugins/Downloader')).default;
+    const isDirect = localStorage.getItem(STORAGE_DIRECT_KEY);
+
+    if (isDirect || !uri) {
+      const result = await Downloader.getStatusesDirect();
+      const parsed: StatusFile[] = JSON.parse(result.files);
+      setFiles(parsed.reverse());
+    } else {
       const result = await Downloader.getStatuses({ uri });
       const parsed: StatusFile[] = JSON.parse(result.files);
-      setFiles(parsed.reverse()); // newest first
-    } catch (e: any) {
-      showError('Failed to load statuses: ' + e.message);
-    } finally {
-      setLoading(false);
+      setFiles(parsed.reverse());
     }
-  }, [showError]);
+  } catch (e: any) {
+    showError('Failed to load statuses: ' + e.message);
+  } finally {
+    setLoading(false);
+  }
+}, [showError]);
 
   // Auto-load if permission already granted
 //   useEffect(() => {
@@ -54,19 +78,94 @@ useEffect(() => {
   }
 }, []);
 
+// const requestPermission = useCallback(async () => {
+//   try {
+//     const Downloader = (await import('../plugins/Downloader')).default;
+//     const { uri } = await Downloader.requestStatusPermission();
+//     localStorage.setItem(STORAGE_KEY, uri);
+//     setStatusUri(uri);
+//     showSuccess('Permission granted!');
+//     // Immediately load after permission
+//     await loadStatuses(uri);
+//   } catch (e: any) {
+//     showError('Permission denied. Please select the .Statuses folder.');
+//   }
+// }, [showError, showSuccess, loadStatuses]);
+
 const requestPermission = useCallback(async () => {
   try {
     const Downloader = (await import('../plugins/Downloader')).default;
-    const { uri } = await Downloader.requestStatusPermission();
-    localStorage.setItem(STORAGE_KEY, uri);
-    setStatusUri(uri);
-    showSuccess('Permission granted!');
-    // Immediately load after permission
-    await loadStatuses(uri);
+
+    // Try SAF first
+    try {
+      const { uri } = await Downloader.requestStatusPermission();
+      localStorage.setItem(STORAGE_KEY, uri);
+      localStorage.removeItem(STORAGE_DIRECT_KEY);
+      setStatusUri(uri);
+      showSuccess('Permission granted!');
+      await loadStatuses(uri);
+    } catch (safErr) {
+      // SAF failed (Oppo/Vivo) — try direct file access
+      console.log('SAF failed, trying direct access...');
+      try {
+        const result = await Downloader.getStatusesDirect();
+        const parsed: StatusFile[] = JSON.parse(result.files);
+        if (parsed.length === 0) {
+          showError('No statuses found. Please view some statuses in WhatsApp first.');
+          return;
+        }
+        localStorage.setItem(STORAGE_DIRECT_KEY, 'true');
+        setFiles(parsed.reverse());
+        showSuccess(`Found ${parsed.length} statuses!`);
+      } catch (directErr: any) {
+        showError(directErr.message || 'Could not access WhatsApp statuses');
+      }
+    }
   } catch (e: any) {
-    showError('Permission denied. Please select the .Statuses folder.');
+    showError('Permission denied');
   }
 }, [showError, showSuccess, loadStatuses]);
+
+// Auto-load on mount
+useEffect(() => {
+  if (!Capacitor.isNativePlatform()) return;
+
+  const isDirect = localStorage.getItem(STORAGE_DIRECT_KEY);
+  const uri = localStorage.getItem(STORAGE_KEY);
+
+  if (isDirect) {
+    // Direct access phone — scan files directly
+    import('../plugins/Downloader').then(({ default: Downloader }) => {
+      Downloader.getStatusesDirect()
+        .then(result => {
+          const parsed: StatusFile[] = JSON.parse(result.files);
+          setFiles(parsed.reverse());
+        })
+        .catch(() => {});
+    });
+  } else if (uri) {
+    setStatusUri(uri);
+    loadStatuses(uri);
+  }
+}, []);
+
+// Listen for thumbnails loading in background
+useEffect(() => {
+  if (!Capacitor.isNativePlatform() || files.length === 0) return;
+  let listener: { remove: () => void } | null = null;
+
+  import('../plugins/Downloader').then(({ default: Downloader }) => {
+    Downloader.addListener('statusThumbnail', (data: {
+      uri: string; thumbnail: string
+    }) => {
+      setFiles(prev => prev.map(f =>
+        f.uri === data.uri ? { ...f, thumbnail: data.thumbnail } : f
+      ));
+    }).then(l => { listener = l; });
+  });
+
+  return () => { listener?.remove(); };
+}, [files.length]);
 
   const saveFile = useCallback(async (file: StatusFile) => {
     if (saving.has(file.uri) || saved.has(file.uri)) return;
@@ -84,11 +183,16 @@ const requestPermission = useCallback(async () => {
       try {
         await AdMob.loadInterstitial();
         await AdMob.showInterstitial();
-      } catch {
-        try {
-          await Browser.open({ url: MONETAG_WHATSAPP_SAVE });
-        } catch {}
-      }
+//       } catch {
+//         try {
+//           await Browser.open({ url: MONETAG_WHATSAPP_SAVE });
+//         } catch {}
+//       }
+} catch {
+  try {
+    await AdMob.showMonatagInterstitial({ url: MONETAG_WHATSAPP_SAVE });
+  } catch {}
+}
     } catch (e: any) {
       showError('Failed to save: ' + e.message);
     } finally {
@@ -175,19 +279,18 @@ const requestPermission = useCallback(async () => {
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
-      {/*
-          <button
-            onClick={() => {
-              localStorage.removeItem(STORAGE_KEY);
-              setStatusUri(null);
-              setFiles([]);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-colors"
-          >
-            <X className="w-3 h-3" />
-            Reset
-          </button>
-          */}
+    <button
+      onClick={() => {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_DIRECT_KEY);
+        setStatusUri(null);
+        setFiles([]);
+      }}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-colors"
+    >
+      <X className="w-3 h-3" />
+      Change Folder
+    </button>
         </div>
       </div>
 

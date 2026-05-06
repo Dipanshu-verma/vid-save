@@ -162,4 +162,78 @@ public class AdMobPlugin extends Plugin {
             }
         });
     }
+
+    @PluginMethod
+    public void showMonatagInterstitial(PluginCall call) {
+        String url = call.getString("url", "https://omg10.com/4/10957102");
+
+        getActivity().runOnUiThread(() -> {
+            // Fullscreen in-app WebView — no browser opens
+            android.app.Dialog dialog = new android.app.Dialog(
+                    getActivity(),
+                    android.R.style.Theme_Black_NoTitleBar_Fullscreen
+            );
+
+            android.widget.FrameLayout layout = new android.widget.FrameLayout(getActivity());
+
+            android.webkit.WebView webView = new android.webkit.WebView(getActivity());
+            webView.getSettings().setJavaScriptEnabled(true);
+            webView.getSettings().setDomStorageEnabled(true);
+            webView.getSettings().setMixedContentMode(
+                    android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+            webView.setWebViewClient(new android.webkit.WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(android.webkit.WebView view,
+                                                        android.webkit.WebResourceRequest request) {
+                    String reqUrl = request.getUrl().toString();
+                    if (reqUrl.startsWith("intent://")) {
+                        try {
+                            android.content.Intent intent = android.content.Intent.parseUri(
+                                    reqUrl, android.content.Intent.URI_INTENT_SCHEME);
+                            if (getActivity().getPackageManager()
+                                    .resolveActivity(intent, 0) != null) {
+                                getActivity().startActivity(intent);
+                            }
+                        } catch (Exception ignored) {}
+                        return true;
+                    }
+                    return false;
+                }
+            });
+
+            webView.loadUrl(url);
+
+            // Close button
+            android.widget.Button closeBtn = new android.widget.Button(getActivity());
+            closeBtn.setText("✕ Close");
+            closeBtn.setTextColor(android.graphics.Color.WHITE);
+            closeBtn.setBackgroundColor(android.graphics.Color.parseColor("#80000000"));
+            closeBtn.setOnClickListener(v -> dialog.dismiss());
+
+            android.widget.FrameLayout.LayoutParams webParams =
+                    new android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
+
+            android.widget.FrameLayout.LayoutParams btnParams =
+                    new android.widget.FrameLayout.LayoutParams(
+                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
+            btnParams.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
+            btnParams.setMargins(0, 40, 20, 0);
+
+            layout.addView(webView, webParams);
+            layout.addView(closeBtn, btnParams);
+
+            dialog.setContentView(layout);
+            dialog.show();
+
+            // Auto close after 15 seconds
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(dialog::dismiss, 15000);
+
+            call.resolve();
+        });
+    }
 }

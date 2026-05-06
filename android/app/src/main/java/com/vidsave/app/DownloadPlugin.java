@@ -615,18 +615,308 @@ public class DownloadPlugin extends Plugin {
     private static final int REQUEST_STATUSES_DIR = 1001;
     private PluginCall pendingStatusCall;
 
-    @PluginMethod
-    public void requestStatusPermission(PluginCall call) {
-        android.content.Intent intent = new android.content.Intent(
-                android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
-        );
-        intent.addFlags(
-                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                        android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-        );
-        startActivityForResult(call, intent, "statusPermissionResult");
+//    @PluginMethod
+//    public void requestStatusPermission(PluginCall call) {
+//        android.content.Intent intent = new android.content.Intent(
+//                android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
+//        );
+//        intent.addFlags(
+//                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
+//                        android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+//        );
+//        startActivityForResult(call, intent, "statusPermissionResult");
+//    }
+@PluginMethod
+public void requestStatusPermission(PluginCall call) {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        if (!android.os.Environment.isExternalStorageManager()) {
+            android.content.Intent manageIntent = new android.content.Intent(
+                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    android.net.Uri.parse("package:" + getContext().getPackageName())
+            );
+            getActivity().startActivity(manageIntent);
+        }
     }
 
+    pendingStatusCall = call;
+    call.setKeepAlive(true);
+
+    android.content.Intent intent = new android.content.Intent(
+            android.content.Intent.ACTION_OPEN_DOCUMENT_TREE
+    );
+    intent.addFlags(
+            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                    android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+    );
+
+    // Point directly to .Statuses folder
+    try {
+        String statusPath = "primary:Android/media/com.whatsapp/WhatsApp/Media/.Statuses";
+        android.net.Uri initialUri = android.provider.DocumentsContract.buildDocumentUri(
+                "com.android.externalstorage.documents",
+                statusPath
+        );
+        intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, initialUri);
+    } catch (Exception ignored) {}
+
+    startActivityForResult(call, intent, "statusPermissionResult");
+}
+
+    @PluginMethod
+    public void getStatusesDirect(PluginCall call) {
+        String[] paths = {
+                android.os.Environment.getExternalStorageDirectory()
+                        + "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+                android.os.Environment.getExternalStorageDirectory()
+                        + "/WhatsApp/Media/.Statuses",
+                "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+                "/sdcard/WhatsApp/Media/.Statuses",
+        };
+
+        new Thread(() -> {
+            try {
+                org.json.JSONArray files = new org.json.JSONArray();
+                java.util.List<java.io.File> foundFiles = new java.util.ArrayList<>();
+
+                for (String path : paths) {
+                    java.io.File dir = new java.io.File(path);
+                    android.util.Log.d("StatusSaver", "Trying: " + path + " exists=" + dir.exists());
+                    if (!dir.exists() || !dir.isDirectory()) continue;
+
+                    java.io.File[] fileList = dir.listFiles();
+                    if (fileList == null || fileList.length == 0) continue;
+
+                    // Sort newest first
+                    java.util.Arrays.sort(fileList, (a, b) ->
+                            Long.compare(b.lastModified(), a.lastModified()));
+
+                    for (java.io.File file : fileList) {
+                        if (!file.isFile()) continue;
+                        String name = file.getName().toLowerCase();
+                        if (name.startsWith(".") || name.equals("nomedia")) continue;
+
+                        String type = "image";
+                        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv")) {
+                            type = "video";
+                        } else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
+                                && !name.endsWith(".png") && !name.endsWith(".webp")) {
+                            continue;
+                        }
+
+                        org.json.JSONObject obj = new org.json.JSONObject();
+                        obj.put("uri", android.net.Uri.fromFile(file).toString());
+                        obj.put("name", file.getName());
+                        obj.put("type", type);
+                        obj.put("size", file.length());
+                        obj.put("path", file.getAbsolutePath());
+                        files.put(obj);
+                        foundFiles.add(file);
+                    }
+
+                    if (files.length() > 0) break;
+                }
+
+                // ← Return files IMMEDIATELY without waiting for thumbnails
+                JSObject result = new JSObject();
+                result.put("files", files.toString());
+                result.put("isDirect", true);
+                call.resolve(result);
+
+                // ← Load thumbnails in background, emit one by one
+                if (!foundFiles.isEmpty()) {
+                    loadThumbnailsAsync(foundFiles, files);
+                }
+
+            } catch (Exception e) {
+                call.reject("Failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void loadThumbnailsAsync(java.util.List<java.io.File> files,
+                                     org.json.JSONArray fileObjs) {
+        new Thread(() -> {
+            for (int i = 0; i < files.size(); i++) {
+                java.io.File file = files.get(i);
+                try {
+                    String type = fileObjs.getJSONObject(i).optString("type");
+                    String uri = fileObjs.getJSONObject(i).optString("uri");
+                    String thumbnail = null;
+
+                    if (type.equals("image")) {
+                        android.graphics.BitmapFactory.Options opts =
+                                new android.graphics.BitmapFactory.Options();
+                        opts.inSampleSize = 4;
+                        android.graphics.Bitmap bmp =
+                                android.graphics.BitmapFactory.decodeFile(
+                                        file.getAbsolutePath(), opts);
+                        if (bmp != null) {
+                            java.io.ByteArrayOutputStream baos =
+                                    new java.io.ByteArrayOutputStream();
+                            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG,
+                                    50, baos);
+                            thumbnail = "data:image/jpeg;base64," +
+                                    android.util.Base64.encodeToString(
+                                            baos.toByteArray(),
+                                            android.util.Base64.NO_WRAP);
+                            bmp.recycle();
+                        }
+                    } else {
+                        android.media.MediaMetadataRetriever r =
+                                new android.media.MediaMetadataRetriever();
+                        r.setDataSource(file.getAbsolutePath());
+                        android.graphics.Bitmap frame = r.getFrameAtTime(0,
+                                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+                        r.release();
+                        if (frame != null) {
+                            android.graphics.Bitmap scaled =
+                                    android.graphics.Bitmap.createScaledBitmap(
+                                            frame, 200, 150, true);
+                            frame.recycle();
+                            java.io.ByteArrayOutputStream baos =
+                                    new java.io.ByteArrayOutputStream();
+                            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG,
+                                    50, baos);
+                            thumbnail = "data:image/jpeg;base64," +
+                                    android.util.Base64.encodeToString(
+                                            baos.toByteArray(),
+                                            android.util.Base64.NO_WRAP);
+                            scaled.recycle();
+                        }
+                    }
+
+                    if (thumbnail != null) {
+                        JSObject event = new JSObject();
+                        event.put("uri", uri);
+                        event.put("thumbnail", thumbnail);
+                        notifyListeners("statusThumbnail", event);
+                    }
+                } catch (Exception ignored) {}
+            }
+        }).start();
+    }
+
+//    @PluginMethod
+//    public void getStatusesDirect(PluginCall call) {
+//        // Try all known WhatsApp status paths across different phones/versions
+//        String[] paths = {
+//                // Android 10+ path
+//                android.os.Environment.getExternalStorageDirectory()
+//                        + "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+//                // Old path (Android 9 and below)
+//                android.os.Environment.getExternalStorageDirectory()
+//                        + "/WhatsApp/Media/.Statuses",
+//                // WhatsApp Business
+//                android.os.Environment.getExternalStorageDirectory()
+//                        + "/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses",
+//                // Some Oppo/Vivo custom path
+//                "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+//                "/sdcard/WhatsApp/Media/.Statuses",
+//        };
+//
+//        new Thread(() -> {
+//            try {
+//                org.json.JSONArray files = new org.json.JSONArray();
+//                boolean foundDir = false;
+//
+//                for (String path : paths) {
+//                    java.io.File dir = new java.io.File(path);
+//                    android.util.Log.d("StatusSaver", "Trying path: " + path + " exists=" + dir.exists());
+//
+//                    if (!dir.exists() || !dir.isDirectory()) continue;
+//                    foundDir = true;
+//
+//                    java.io.File[] fileList = dir.listFiles();
+//                    if (fileList == null) continue;
+//
+//                    for (java.io.File file : fileList) {
+//                        if (!file.isFile()) continue;
+//                        String name = file.getName().toLowerCase();
+//
+//                        // Skip .nomedia and hidden files
+//                        if (name.startsWith(".") || name.equals("nomedia")) continue;
+//
+//                        String type = "image";
+//                        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv")) {
+//                            type = "video";
+//                        } else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
+//                                && !name.endsWith(".png") && !name.endsWith(".gif")
+//                                && !name.endsWith(".webp")) {
+//                            continue; // Skip unknown types
+//                        }
+//
+//                        try {
+//                            org.json.JSONObject fileObj = new org.json.JSONObject();
+//                            fileObj.put("uri", android.net.Uri.fromFile(file).toString());
+//                            fileObj.put("name", file.getName());
+//                            fileObj.put("type", type);
+//                            fileObj.put("size", file.length());
+//                            fileObj.put("path", file.getAbsolutePath());
+//
+//                            // Generate thumbnail
+//                            if (type.equals("image")) {
+//                                try {
+//                                    android.graphics.BitmapFactory.Options opts =
+//                                            new android.graphics.BitmapFactory.Options();
+//                                    opts.inSampleSize = 4;
+//                                    android.graphics.Bitmap bmp =
+//                                            android.graphics.BitmapFactory.decodeFile(
+//                                                    file.getAbsolutePath(), opts);
+//                                    if (bmp != null) {
+//                                        java.io.ByteArrayOutputStream baos =
+//                                                new java.io.ByteArrayOutputStream();
+//                                        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, baos);
+//                                        String b64 = android.util.Base64.encodeToString(
+//                                                baos.toByteArray(), android.util.Base64.NO_WRAP);
+//                                        fileObj.put("thumbnail", "data:image/jpeg;base64," + b64);
+//                                        bmp.recycle();
+//                                    }
+//                                } catch (Exception ignored) {}
+//                            } else {
+//                                try {
+//                                    android.media.MediaMetadataRetriever retriever =
+//                                            new android.media.MediaMetadataRetriever();
+//                                    retriever.setDataSource(file.getAbsolutePath());
+//                                    android.graphics.Bitmap frame = retriever.getFrameAtTime(0,
+//                                            android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+//                                    retriever.release();
+//                                    if (frame != null) {
+//                                        android.graphics.Bitmap scaled =
+//                                                android.graphics.Bitmap.createScaledBitmap(frame, 320, 180, true);
+//                                        frame.recycle();
+//                                        java.io.ByteArrayOutputStream baos =
+//                                                new java.io.ByteArrayOutputStream();
+//                                        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, baos);
+//                                        String b64 = android.util.Base64.encodeToString(
+//                                                baos.toByteArray(), android.util.Base64.NO_WRAP);
+//                                        fileObj.put("thumbnail", "data:image/jpeg;base64," + b64);
+//                                        scaled.recycle();
+//                                    }
+//                                } catch (Exception ignored) {}
+//                            }
+//
+//                            files.put(fileObj);
+//                        } catch (Exception ignored) {}
+//                    }
+//
+//                    if (files.length() > 0) break; // Found files, stop searching
+//                }
+//
+//                if (!foundDir) {
+//                    call.reject("WhatsApp status folder not found. Please open WhatsApp and view some statuses first.");
+//                    return;
+//                }
+//
+//                JSObject result = new JSObject();
+//                result.put("files", files.toString());
+//                result.put("isDirect", true);
+//                call.resolve(result);
+//
+//            } catch (Exception e) {
+//                call.reject("Failed: " + e.getMessage());
+//            }
+//        }).start();
+//    }
     @com.getcapacitor.annotation.ActivityCallback
     private void statusPermissionResult(PluginCall call, androidx.activity.result.ActivityResult result) {
         if (result.getResultCode() == android.app.Activity.RESULT_OK) {
@@ -747,19 +1037,35 @@ public class DownloadPlugin extends Plugin {
         call.setKeepAlive(true);
         new Thread(() -> {
             try {
-                android.net.Uri uri = android.net.Uri.parse(fileUri);
-                java.io.InputStream inputStream = getContext()
-                        .getContentResolver().openInputStream(uri);
+                java.io.InputStream inputStream;
+
+                // Handle both file:// and content:// URIs
+                if (fileUri.startsWith("file://")) {
+                    java.io.File file = new java.io.File(
+                            android.net.Uri.parse(fileUri).getPath());
+                    inputStream = new java.io.FileInputStream(file);
+                } else {
+                    android.net.Uri uri = android.net.Uri.parse(fileUri);
+                    inputStream = getContext().getContentResolver().openInputStream(uri);
+                }
 
                 if (inputStream == null) {
                     call.reject("Cannot open file");
                     return;
                 }
 
+                // Detect MIME type from filename
+                String mime = "video/mp4";
+                String lower = filename.toLowerCase();
+                if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) mime = "image/jpeg";
+                else if (lower.endsWith(".png")) mime = "image/png";
+                else if (lower.endsWith(".gif")) mime = "image/gif";
+                else if (lower.endsWith(".webp")) mime = "image/webp";
+
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                     android.content.ContentValues values = new android.content.ContentValues();
                     values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, filename);
-                    values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "video/mp4");
+                    values.put(android.provider.MediaStore.Downloads.MIME_TYPE, mime);
                     values.put(android.provider.MediaStore.Downloads.IS_PENDING, 1);
 
                     android.content.ContentResolver resolver = getContext().getContentResolver();
@@ -770,16 +1076,13 @@ public class DownloadPlugin extends Plugin {
                     java.io.OutputStream outputStream = resolver.openOutputStream(itemUri);
                     byte[] buffer = new byte[8192];
                     int read;
-                    while ((read = inputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, read);
-                    }
+                    while ((read = inputStream.read(buffer)) != -1) outputStream.write(buffer, 0, read);
                     outputStream.close();
                     inputStream.close();
 
                     values.clear();
                     values.put(android.provider.MediaStore.Downloads.IS_PENDING, 0);
                     resolver.update(itemUri, values, null, null);
-
                 } else {
                     java.io.File destDir = android.os.Environment
                             .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
@@ -787,9 +1090,7 @@ public class DownloadPlugin extends Plugin {
                     java.io.FileOutputStream out = new java.io.FileOutputStream(dest);
                     byte[] buffer = new byte[8192];
                     int read;
-                    while ((read = inputStream.read(buffer)) != -1) {
-                        out.write(buffer, 0, read);
-                    }
+                    while ((read = inputStream.read(buffer)) != -1) out.write(buffer, 0, read);
                     out.close();
                     inputStream.close();
                     MediaScannerConnection.scanFile(getContext(),
@@ -797,12 +1098,81 @@ public class DownloadPlugin extends Plugin {
                 }
 
                 call.resolve();
-
             } catch (Exception e) {
                 call.reject("Save failed: " + e.getMessage());
             }
         }).start();
     }
+
+//    @PluginMethod
+//    public void saveStatusFile(PluginCall call) {
+//        String fileUri = call.getString("uri");
+//        String filename = call.getString("filename", "WA_Status_" + System.currentTimeMillis() + ".mp4");
+//
+//        if (fileUri == null) {
+//            call.reject("URI required");
+//            return;
+//        }
+//
+//        call.setKeepAlive(true);
+//        new Thread(() -> {
+//            try {
+//                android.net.Uri uri = android.net.Uri.parse(fileUri);
+//                java.io.InputStream inputStream = getContext()
+//                        .getContentResolver().openInputStream(uri);
+//
+//                if (inputStream == null) {
+//                    call.reject("Cannot open file");
+//                    return;
+//                }
+//
+//                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+//                    android.content.ContentValues values = new android.content.ContentValues();
+//                    values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, filename);
+//                    values.put(android.provider.MediaStore.Downloads.MIME_TYPE, "video/mp4");
+//                    values.put(android.provider.MediaStore.Downloads.IS_PENDING, 1);
+//
+//                    android.content.ContentResolver resolver = getContext().getContentResolver();
+//                    android.net.Uri collection = android.provider.MediaStore.Downloads
+//                            .getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY);
+//                    android.net.Uri itemUri = resolver.insert(collection, values);
+//
+//                    java.io.OutputStream outputStream = resolver.openOutputStream(itemUri);
+//                    byte[] buffer = new byte[8192];
+//                    int read;
+//                    while ((read = inputStream.read(buffer)) != -1) {
+//                        outputStream.write(buffer, 0, read);
+//                    }
+//                    outputStream.close();
+//                    inputStream.close();
+//
+//                    values.clear();
+//                    values.put(android.provider.MediaStore.Downloads.IS_PENDING, 0);
+//                    resolver.update(itemUri, values, null, null);
+//
+//                } else {
+//                    java.io.File destDir = android.os.Environment
+//                            .getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+//                    java.io.File dest = new java.io.File(destDir, filename);
+//                    java.io.FileOutputStream out = new java.io.FileOutputStream(dest);
+//                    byte[] buffer = new byte[8192];
+//                    int read;
+//                    while ((read = inputStream.read(buffer)) != -1) {
+//                        out.write(buffer, 0, read);
+//                    }
+//                    out.close();
+//                    inputStream.close();
+//                    MediaScannerConnection.scanFile(getContext(),
+//                            new String[]{dest.getAbsolutePath()}, null, null);
+//                }
+//
+//                call.resolve();
+//
+//            } catch (Exception e) {
+//                call.reject("Save failed: " + e.getMessage());
+//            }
+//        }).start();
+//    }
 
     @Override
     public void handleOnActivityResult(int requestCode, int resultCode, android.content.Intent data) {

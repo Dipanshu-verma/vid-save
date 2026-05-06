@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Share2, X, Download, Globe } from 'lucide-react';
     import { useToast } from './Toast';
 
-const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
+// const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
 const WEB_URL = 'https://vid-save.vercel.app';
-
+const APK_URL = 'https://tinyurl.com/bhawanishanker';
 
 export default function Header() {
   const { showSuccess } = useToast();

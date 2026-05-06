@@ -6,8 +6,8 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
-
-const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
+const APK_URL = 'https://tinyurl.com/bhawanishanker';
+//     const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);

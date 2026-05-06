@@ -49,18 +49,6 @@ export default function App() {
   // Lifted up — persists across tab switches
   const downloadState = useDownload();
 
-//   useEffect(() => {
-//     wakeUpServer();
-//
-//     const handleNav = () => {
-//       const params = new URLSearchParams(window.location.search);
-//       const tab = params.get('tab');
-//       if (tab) setActiveTab(tab);
-//     };
-//     window.addEventListener('popstate', handleNav);
-//     return () => window.removeEventListener('popstate', handleNav);
-//   }, []);
-
 useEffect(() => {
   wakeUpServer();
 
@@ -76,7 +64,7 @@ useEffect(() => {
           await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
         } catch {}
       }
-    }, 500); // 3 second delay after app opens
+    }, 500);
   }
 
   const handleNav = () => {

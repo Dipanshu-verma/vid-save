@@ -8,6 +8,8 @@ export interface DownloadQuality {
   ext: string;
   size?: string;
   resolution?: string;
+    isAudio?: boolean;
+
 }
 
 export interface DownloadResult {

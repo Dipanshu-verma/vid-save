@@ -49,7 +49,9 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
   const { showError, showSuccess } = useToast();
   const progressListenerRef = useRef<{ remove: () => void } | null>(null);
   useDownloadKeyframes();
-
+ const isAudio = quality.isAudio === true;
+  const ext = isAudio ? 'mp3' : 'mp4';
+  const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
   const handlePause = async () => {
     if (!Capacitor.isNativePlatform()) return;
     setState('paused');
@@ -76,9 +78,6 @@ function QualityButton({ quality, title }: { quality: DownloadQuality; title: st
 
 //       const isRenderJob = downloadUrl.includes('render-api') && downloadUrl.includes('execute');
 
-const isAudio = quality.isAudio === true;
-const ext = isAudio ? 'mp3' : 'mp4';
-const mimeType = isAudio ? 'audio/mpeg' : 'video/mp4';
 const filename = `${title.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 50)}_${quality.label.replace(/\s+/g, '_')}.${ext}`;
 
 // Render job check — both video and audio use render job

@@ -21,6 +21,8 @@ export function addToHistory(record: Omit<DownloadRecord, 'id' | 'created_at'>):
   };
   const updated = [newRecord, ...existing].slice(0, MAX_RECORDS);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('vidsave_history_updated'));
+
   return newRecord;
 }
 

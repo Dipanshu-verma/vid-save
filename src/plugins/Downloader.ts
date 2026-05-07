@@ -44,6 +44,11 @@ export interface DownloaderPlugin {
   addListener(event: 'downloadProgress', handler: (data: {
     downloaded: number; total: number; percent: number; paused: boolean;
   }) => void): Promise<{ remove: () => void }>;
+checkStoragePermission(): Promise<{ granted: boolean }>;
+requestAllFilesAccess(): Promise<void>;
+addListener(event: 'statusThumbnailBatch', handler: (data: {
+  batch: string;
+}) => void): Promise<{ remove: () => void }>;
 }
 
 const Downloader = registerPlugin<DownloaderPlugin>('Downloader');

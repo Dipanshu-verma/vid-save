@@ -662,6 +662,256 @@ public void requestStatusPermission(PluginCall call) {
     startActivityForResult(call, intent, "statusPermissionResult");
 }
 
+    private String getThumbnailCacheKey(java.io.File file) {
+        return file.getName() + "_" + file.lastModified();
+    }
+
+    private String getCachedThumbnail(java.io.File file) {
+        try {
+            java.io.File cacheDir = getContext().getCacheDir();
+            java.io.File cacheFile = new java.io.File(cacheDir,
+                    "thumb_" + getThumbnailCacheKey(file).hashCode() + ".txt");
+            if (cacheFile.exists()) {
+                java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.FileReader(cacheFile));
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+                reader.close();
+                return sb.toString();
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
+    private void saveThumbnailCache(java.io.File file, String base64) {
+        try {
+            java.io.File cacheDir = getContext().getCacheDir();
+            java.io.File cacheFile = new java.io.File(cacheDir,
+                    "thumb_" + getThumbnailCacheKey(file).hashCode() + ".txt");
+            java.io.FileWriter writer = new java.io.FileWriter(cacheFile);
+            writer.write(base64);
+            writer.close();
+        } catch (Exception ignored) {}
+    }
+
+//    @PluginMethod
+//    public void getStatusesDirect(PluginCall call) {
+//        String[] paths = {
+//                android.os.Environment.getExternalStorageDirectory()
+//                        + "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+//                android.os.Environment.getExternalStorageDirectory()
+//                        + "/WhatsApp/Media/.Statuses",
+//                "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
+//                "/sdcard/WhatsApp/Media/.Statuses",
+//        };
+//
+//        new Thread(() -> {
+//            try {
+//                org.json.JSONArray files = new org.json.JSONArray();
+//                java.util.List<java.io.File> foundFiles = new java.util.ArrayList<>();
+//
+//                for (String path : paths) {
+//                    java.io.File dir = new java.io.File(path);
+//                    android.util.Log.d("StatusSaver", "Trying: " + path + " exists=" + dir.exists());
+//                    if (!dir.exists() || !dir.isDirectory()) continue;
+//
+//                    java.io.File[] fileList = dir.listFiles();
+//                    if (fileList == null || fileList.length == 0) continue;
+//
+//                    // Sort newest first
+//                    java.util.Arrays.sort(fileList, (a, b) ->
+//                            Long.compare(b.lastModified(), a.lastModified()));
+//
+//                    for (java.io.File file : fileList) {
+//                        if (!file.isFile()) continue;
+//                        String name = file.getName().toLowerCase();
+//                        if (name.startsWith(".") || name.equals("nomedia")) continue;
+//
+//                        String type = "image";
+//                        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv")) {
+//                            type = "video";
+//                        } else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
+//                                && !name.endsWith(".png") && !name.endsWith(".webp")) {
+//                            continue;
+//                        }
+//
+//                        org.json.JSONObject obj = new org.json.JSONObject();
+//                        obj.put("uri", android.net.Uri.fromFile(file).toString());
+//                        obj.put("name", file.getName());
+//                        obj.put("type", type);
+//                        obj.put("size", file.length());
+//                        obj.put("path", file.getAbsolutePath());
+//                        files.put(obj);
+//                        foundFiles.add(file);
+//                    }
+//
+//                    if (files.length() > 0) break;
+//                }
+//
+//                // ← Return files IMMEDIATELY without waiting for thumbnails
+//                JSObject result = new JSObject();
+//                result.put("files", files.toString());
+//                result.put("isDirect", true);
+//                call.resolve(result);
+//
+//                // ← Load thumbnails in background, emit one by one
+//                if (!foundFiles.isEmpty()) {
+//                    loadThumbnailsAsync(foundFiles, files);
+//                }
+//
+//            } catch (Exception e) {
+//                call.reject("Failed: " + e.getMessage());
+//            }
+//        }).start();
+//    }
+
+//    private void loadThumbnailsAsync(java.util.List<java.io.File> files,
+//                                     org.json.JSONArray fileObjs) {
+//        new Thread(() -> {
+//            for (int i = 0; i < files.size(); i++) {
+//                java.io.File file = files.get(i);
+//                try {
+//                    String type = fileObjs.getJSONObject(i).optString("type");
+//                    String uri = fileObjs.getJSONObject(i).optString("uri");
+//                    String thumbnail = null;
+//
+//                    if (type.equals("image")) {
+//                        android.graphics.BitmapFactory.Options opts =
+//                                new android.graphics.BitmapFactory.Options();
+//                        opts.inSampleSize = 4;
+//                        android.graphics.Bitmap bmp =
+//                                android.graphics.BitmapFactory.decodeFile(
+//                                        file.getAbsolutePath(), opts);
+//                        if (bmp != null) {
+//                            java.io.ByteArrayOutputStream baos =
+//                                    new java.io.ByteArrayOutputStream();
+//                            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG,
+//                                    50, baos);
+//                            thumbnail = "data:image/jpeg;base64," +
+//                                    android.util.Base64.encodeToString(
+//                                            baos.toByteArray(),
+//                                            android.util.Base64.NO_WRAP);
+//                            bmp.recycle();
+//                        }
+//                    } else {
+//                        android.media.MediaMetadataRetriever r =
+//                                new android.media.MediaMetadataRetriever();
+//                        r.setDataSource(file.getAbsolutePath());
+//                        android.graphics.Bitmap frame = r.getFrameAtTime(0,
+//                                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+//                        r.release();
+//                        if (frame != null) {
+//                            android.graphics.Bitmap scaled =
+//                                    android.graphics.Bitmap.createScaledBitmap(
+//                                            frame, 200, 150, true);
+//                            frame.recycle();
+//                            java.io.ByteArrayOutputStream baos =
+//                                    new java.io.ByteArrayOutputStream();
+//                            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG,
+//                                    50, baos);
+//                            thumbnail = "data:image/jpeg;base64," +
+//                                    android.util.Base64.encodeToString(
+//                                            baos.toByteArray(),
+//                                            android.util.Base64.NO_WRAP);
+//                            scaled.recycle();
+//                        }
+//                    }
+//
+//                    if (thumbnail != null) {
+//                        JSObject event = new JSObject();
+//                        event.put("uri", uri);
+//                        event.put("thumbnail", thumbnail);
+//                        notifyListeners("statusThumbnail", event);
+//                    }
+//                } catch (Exception ignored) {}
+//            }
+//        }).start();
+//    }
+
+    private void loadThumbnailsAsync(java.util.List<java.io.File> files,
+                                     org.json.JSONArray fileObjs) {
+        new Thread(() -> {
+            try {
+                org.json.JSONArray batch = new org.json.JSONArray();
+
+                for (int i = 0; i < files.size(); i++) {
+                    java.io.File file = files.get(i);
+                    try {
+                        String type = fileObjs.getJSONObject(i).optString("type");
+                        String uri = fileObjs.getJSONObject(i).optString("uri");
+                        String thumbnail = null;
+
+                        if (type.equals("image")) {
+                            android.graphics.BitmapFactory.Options opts =
+                                    new android.graphics.BitmapFactory.Options();
+                            opts.inSampleSize = 4;
+                            android.graphics.Bitmap bmp =
+                                    android.graphics.BitmapFactory.decodeFile(
+                                            file.getAbsolutePath(), opts);
+                            if (bmp != null) {
+                                java.io.ByteArrayOutputStream baos =
+                                        new java.io.ByteArrayOutputStream();
+                                bmp.compress(
+                                        android.graphics.Bitmap.CompressFormat.JPEG,
+                                        40, baos);
+                                thumbnail = "data:image/jpeg;base64," +
+                                        android.util.Base64.encodeToString(
+                                                baos.toByteArray(),
+                                                android.util.Base64.NO_WRAP);
+                                bmp.recycle();
+                                saveThumbnailCache(file, thumbnail);
+                            }
+                        } else {
+                            android.media.MediaMetadataRetriever r =
+                                    new android.media.MediaMetadataRetriever();
+                            r.setDataSource(file.getAbsolutePath());
+                            android.graphics.Bitmap frame = r.getFrameAtTime(0,
+                                    android.media.MediaMetadataRetriever
+                                            .OPTION_CLOSEST_SYNC);
+                            r.release();
+                            if (frame != null) {
+                                android.graphics.Bitmap scaled =
+                                        android.graphics.Bitmap.createScaledBitmap(
+                                                frame, 160, 120, true);
+                                frame.recycle();
+                                java.io.ByteArrayOutputStream baos =
+                                        new java.io.ByteArrayOutputStream();
+                                scaled.compress(
+                                        android.graphics.Bitmap.CompressFormat.JPEG,
+                                        40, baos);
+                                thumbnail = "data:image/jpeg;base64," +
+                                        android.util.Base64.encodeToString(
+                                                baos.toByteArray(),
+                                                android.util.Base64.NO_WRAP);
+                                scaled.recycle();
+                                saveThumbnailCache(file, thumbnail);
+                            }
+                        }
+
+                        if (thumbnail != null) {
+                            org.json.JSONObject item = new org.json.JSONObject();
+                            item.put("uri", uri);
+                            item.put("thumbnail", thumbnail);
+                            batch.put(item);
+                        }
+
+                        // Send every 5 or at end
+                        if (batch.length() >= 5 || i == files.size() - 1) {
+                            if (batch.length() > 0) {
+                                JSObject event = new JSObject();
+                                event.put("batch", batch.toString());
+                                notifyListeners("statusThumbnailBatch", event);
+                                batch = new org.json.JSONArray();
+                            }
+                        }
+
+                    } catch (Exception ignored) {}
+                }
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
     @PluginMethod
     public void getStatusesDirect(PluginCall call) {
         String[] paths = {
@@ -676,17 +926,16 @@ public void requestStatusPermission(PluginCall call) {
         new Thread(() -> {
             try {
                 org.json.JSONArray files = new org.json.JSONArray();
-                java.util.List<java.io.File> foundFiles = new java.util.ArrayList<>();
+                java.util.List<java.io.File> uncachedFiles = new java.util.ArrayList<>();
+                java.util.List<org.json.JSONObject> uncachedObjs = new java.util.ArrayList<>();
 
                 for (String path : paths) {
                     java.io.File dir = new java.io.File(path);
-                    android.util.Log.d("StatusSaver", "Trying: " + path + " exists=" + dir.exists());
                     if (!dir.exists() || !dir.isDirectory()) continue;
 
                     java.io.File[] fileList = dir.listFiles();
                     if (fileList == null || fileList.length == 0) continue;
 
-                    // Sort newest first
                     java.util.Arrays.sort(fileList, (a, b) ->
                             Long.compare(b.lastModified(), a.lastModified()));
 
@@ -696,12 +945,9 @@ public void requestStatusPermission(PluginCall call) {
                         if (name.startsWith(".") || name.equals("nomedia")) continue;
 
                         String type = "image";
-                        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv")) {
-                            type = "video";
-                        } else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
-                                && !name.endsWith(".png") && !name.endsWith(".webp")) {
-                            continue;
-                        }
+                        if (name.endsWith(".mp4") || name.endsWith(".3gp")) type = "video";
+                        else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
+                                && !name.endsWith(".png") && !name.endsWith(".webp")) continue;
 
                         org.json.JSONObject obj = new org.json.JSONObject();
                         obj.put("uri", android.net.Uri.fromFile(file).toString());
@@ -709,22 +955,33 @@ public void requestStatusPermission(PluginCall call) {
                         obj.put("type", type);
                         obj.put("size", file.length());
                         obj.put("path", file.getAbsolutePath());
+
+                        // Include cached thumbnail immediately
+                        String cached = getCachedThumbnail(file);
+                        if (cached != null) {
+                            obj.put("thumbnail", cached);
+                        } else {
+                            uncachedFiles.add(file);
+                            uncachedObjs.add(obj);
+                        }
+
                         files.put(obj);
-                        foundFiles.add(file);
                     }
 
                     if (files.length() > 0) break;
                 }
 
-                // ← Return files IMMEDIATELY without waiting for thumbnails
+                // Return instantly — cached ones already have thumbnails
                 JSObject result = new JSObject();
                 result.put("files", files.toString());
                 result.put("isDirect", true);
                 call.resolve(result);
 
-                // ← Load thumbnails in background, emit one by one
-                if (!foundFiles.isEmpty()) {
-                    loadThumbnailsAsync(foundFiles, files);
+                // Only generate for new/uncached files
+                if (!uncachedFiles.isEmpty()) {
+                    org.json.JSONArray uncachedArr = new org.json.JSONArray();
+                    for (org.json.JSONObject o : uncachedObjs) uncachedArr.put(o);
+                    loadThumbnailsAsync(uncachedFiles, uncachedArr);
                 }
 
             } catch (Exception e) {
@@ -732,191 +989,6 @@ public void requestStatusPermission(PluginCall call) {
             }
         }).start();
     }
-
-    private void loadThumbnailsAsync(java.util.List<java.io.File> files,
-                                     org.json.JSONArray fileObjs) {
-        new Thread(() -> {
-            for (int i = 0; i < files.size(); i++) {
-                java.io.File file = files.get(i);
-                try {
-                    String type = fileObjs.getJSONObject(i).optString("type");
-                    String uri = fileObjs.getJSONObject(i).optString("uri");
-                    String thumbnail = null;
-
-                    if (type.equals("image")) {
-                        android.graphics.BitmapFactory.Options opts =
-                                new android.graphics.BitmapFactory.Options();
-                        opts.inSampleSize = 4;
-                        android.graphics.Bitmap bmp =
-                                android.graphics.BitmapFactory.decodeFile(
-                                        file.getAbsolutePath(), opts);
-                        if (bmp != null) {
-                            java.io.ByteArrayOutputStream baos =
-                                    new java.io.ByteArrayOutputStream();
-                            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG,
-                                    50, baos);
-                            thumbnail = "data:image/jpeg;base64," +
-                                    android.util.Base64.encodeToString(
-                                            baos.toByteArray(),
-                                            android.util.Base64.NO_WRAP);
-                            bmp.recycle();
-                        }
-                    } else {
-                        android.media.MediaMetadataRetriever r =
-                                new android.media.MediaMetadataRetriever();
-                        r.setDataSource(file.getAbsolutePath());
-                        android.graphics.Bitmap frame = r.getFrameAtTime(0,
-                                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-                        r.release();
-                        if (frame != null) {
-                            android.graphics.Bitmap scaled =
-                                    android.graphics.Bitmap.createScaledBitmap(
-                                            frame, 200, 150, true);
-                            frame.recycle();
-                            java.io.ByteArrayOutputStream baos =
-                                    new java.io.ByteArrayOutputStream();
-                            scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG,
-                                    50, baos);
-                            thumbnail = "data:image/jpeg;base64," +
-                                    android.util.Base64.encodeToString(
-                                            baos.toByteArray(),
-                                            android.util.Base64.NO_WRAP);
-                            scaled.recycle();
-                        }
-                    }
-
-                    if (thumbnail != null) {
-                        JSObject event = new JSObject();
-                        event.put("uri", uri);
-                        event.put("thumbnail", thumbnail);
-                        notifyListeners("statusThumbnail", event);
-                    }
-                } catch (Exception ignored) {}
-            }
-        }).start();
-    }
-
-//    @PluginMethod
-//    public void getStatusesDirect(PluginCall call) {
-//        // Try all known WhatsApp status paths across different phones/versions
-//        String[] paths = {
-//                // Android 10+ path
-//                android.os.Environment.getExternalStorageDirectory()
-//                        + "/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
-//                // Old path (Android 9 and below)
-//                android.os.Environment.getExternalStorageDirectory()
-//                        + "/WhatsApp/Media/.Statuses",
-//                // WhatsApp Business
-//                android.os.Environment.getExternalStorageDirectory()
-//                        + "/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses",
-//                // Some Oppo/Vivo custom path
-//                "/sdcard/Android/media/com.whatsapp/WhatsApp/Media/.Statuses",
-//                "/sdcard/WhatsApp/Media/.Statuses",
-//        };
-//
-//        new Thread(() -> {
-//            try {
-//                org.json.JSONArray files = new org.json.JSONArray();
-//                boolean foundDir = false;
-//
-//                for (String path : paths) {
-//                    java.io.File dir = new java.io.File(path);
-//                    android.util.Log.d("StatusSaver", "Trying path: " + path + " exists=" + dir.exists());
-//
-//                    if (!dir.exists() || !dir.isDirectory()) continue;
-//                    foundDir = true;
-//
-//                    java.io.File[] fileList = dir.listFiles();
-//                    if (fileList == null) continue;
-//
-//                    for (java.io.File file : fileList) {
-//                        if (!file.isFile()) continue;
-//                        String name = file.getName().toLowerCase();
-//
-//                        // Skip .nomedia and hidden files
-//                        if (name.startsWith(".") || name.equals("nomedia")) continue;
-//
-//                        String type = "image";
-//                        if (name.endsWith(".mp4") || name.endsWith(".3gp") || name.endsWith(".mkv")) {
-//                            type = "video";
-//                        } else if (!name.endsWith(".jpg") && !name.endsWith(".jpeg")
-//                                && !name.endsWith(".png") && !name.endsWith(".gif")
-//                                && !name.endsWith(".webp")) {
-//                            continue; // Skip unknown types
-//                        }
-//
-//                        try {
-//                            org.json.JSONObject fileObj = new org.json.JSONObject();
-//                            fileObj.put("uri", android.net.Uri.fromFile(file).toString());
-//                            fileObj.put("name", file.getName());
-//                            fileObj.put("type", type);
-//                            fileObj.put("size", file.length());
-//                            fileObj.put("path", file.getAbsolutePath());
-//
-//                            // Generate thumbnail
-//                            if (type.equals("image")) {
-//                                try {
-//                                    android.graphics.BitmapFactory.Options opts =
-//                                            new android.graphics.BitmapFactory.Options();
-//                                    opts.inSampleSize = 4;
-//                                    android.graphics.Bitmap bmp =
-//                                            android.graphics.BitmapFactory.decodeFile(
-//                                                    file.getAbsolutePath(), opts);
-//                                    if (bmp != null) {
-//                                        java.io.ByteArrayOutputStream baos =
-//                                                new java.io.ByteArrayOutputStream();
-//                                        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, baos);
-//                                        String b64 = android.util.Base64.encodeToString(
-//                                                baos.toByteArray(), android.util.Base64.NO_WRAP);
-//                                        fileObj.put("thumbnail", "data:image/jpeg;base64," + b64);
-//                                        bmp.recycle();
-//                                    }
-//                                } catch (Exception ignored) {}
-//                            } else {
-//                                try {
-//                                    android.media.MediaMetadataRetriever retriever =
-//                                            new android.media.MediaMetadataRetriever();
-//                                    retriever.setDataSource(file.getAbsolutePath());
-//                                    android.graphics.Bitmap frame = retriever.getFrameAtTime(0,
-//                                            android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
-//                                    retriever.release();
-//                                    if (frame != null) {
-//                                        android.graphics.Bitmap scaled =
-//                                                android.graphics.Bitmap.createScaledBitmap(frame, 320, 180, true);
-//                                        frame.recycle();
-//                                        java.io.ByteArrayOutputStream baos =
-//                                                new java.io.ByteArrayOutputStream();
-//                                        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, baos);
-//                                        String b64 = android.util.Base64.encodeToString(
-//                                                baos.toByteArray(), android.util.Base64.NO_WRAP);
-//                                        fileObj.put("thumbnail", "data:image/jpeg;base64," + b64);
-//                                        scaled.recycle();
-//                                    }
-//                                } catch (Exception ignored) {}
-//                            }
-//
-//                            files.put(fileObj);
-//                        } catch (Exception ignored) {}
-//                    }
-//
-//                    if (files.length() > 0) break; // Found files, stop searching
-//                }
-//
-//                if (!foundDir) {
-//                    call.reject("WhatsApp status folder not found. Please open WhatsApp and view some statuses first.");
-//                    return;
-//                }
-//
-//                JSObject result = new JSObject();
-//                result.put("files", files.toString());
-//                result.put("isDirect", true);
-//                call.resolve(result);
-//
-//            } catch (Exception e) {
-//                call.reject("Failed: " + e.getMessage());
-//            }
-//        }).start();
-//    }
     @com.getcapacitor.annotation.ActivityCallback
     private void statusPermissionResult(PluginCall call, androidx.activity.result.ActivityResult result) {
         if (result.getResultCode() == android.app.Activity.RESULT_OK) {
@@ -1277,6 +1349,35 @@ public void requestStatusPermission(PluginCall call) {
 
         } catch (Exception e) {
             call.reject("Failed to open file: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
+    public void checkStoragePermission(PluginCall call) {
+        JSObject result = new JSObject();
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            result.put("granted", android.os.Environment.isExternalStorageManager());
+        } else {
+            result.put("granted", true); // Android 10 and below — already works
+        }
+        call.resolve(result);
+    }
+
+    @PluginMethod
+    public void requestAllFilesAccess(PluginCall call) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                android.content.Intent intent = new android.content.Intent(
+                        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                        android.net.Uri.parse("package:" + getContext().getPackageName())
+                );
+                getActivity().startActivity(intent);
+                call.resolve();
+            } else {
+                call.resolve(); // Already granted
+            }
+        } else {
+            call.resolve(); // Not needed below Android 11
         }
     }
 

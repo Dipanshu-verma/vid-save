@@ -4,7 +4,7 @@ import { Share2, X, Download, Globe } from 'lucide-react';
 
 // const APK_URL = 'https://github.com/Dipanshu-verma/vid-save/releases/latest/download/Save.It.Pro.apk';
 const WEB_URL = 'https://vid-save.vercel.app';
-const APK_URL = 'https://tinyurl.com/bhawanishanker';
+const APK_URL = 'https://tinyurl.com/SaveItPro';
 
 export default function Header() {
   const { showSuccess } = useToast();

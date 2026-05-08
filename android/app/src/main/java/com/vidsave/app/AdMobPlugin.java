@@ -168,72 +168,87 @@ public class AdMobPlugin extends Plugin {
         String url = call.getString("url", "https://omg10.com/4/10957102");
 
         getActivity().runOnUiThread(() -> {
-            // Fullscreen in-app WebView — no browser opens
-            android.app.Dialog dialog = new android.app.Dialog(
-                    getActivity(),
-                    android.R.style.Theme_Black_NoTitleBar_Fullscreen
-            );
+            try {
+                android.app.Dialog dialog = new android.app.Dialog(
+                        getActivity(),
+                        android.R.style.Theme_Black_NoTitleBar_Fullscreen
+                );
 
-            android.widget.FrameLayout layout = new android.widget.FrameLayout(getActivity());
+                android.widget.FrameLayout layout =
+                        new android.widget.FrameLayout(getActivity());
 
-            android.webkit.WebView webView = new android.webkit.WebView(getActivity());
-            webView.getSettings().setJavaScriptEnabled(true);
-            webView.getSettings().setDomStorageEnabled(true);
-            webView.getSettings().setMixedContentMode(
-                    android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                android.webkit.WebView webView =
+                        new android.webkit.WebView(getActivity());
+                webView.getSettings().setJavaScriptEnabled(true);
+                webView.getSettings().setDomStorageEnabled(true);
+                webView.getSettings().setMixedContentMode(
+                        android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+                webView.getSettings().setLoadWithOverviewMode(true);
+                webView.getSettings().setUseWideViewPort(true);
 
-            webView.setWebViewClient(new android.webkit.WebViewClient() {
-                @Override
-                public boolean shouldOverrideUrlLoading(android.webkit.WebView view,
-                                                        android.webkit.WebResourceRequest request) {
-                    String reqUrl = request.getUrl().toString();
-                    if (reqUrl.startsWith("intent://")) {
-                        try {
-                            android.content.Intent intent = android.content.Intent.parseUri(
-                                    reqUrl, android.content.Intent.URI_INTENT_SCHEME);
-                            if (getActivity().getPackageManager()
-                                    .resolveActivity(intent, 0) != null) {
-                                getActivity().startActivity(intent);
-                            }
-                        } catch (Exception ignored) {}
-                        return true;
+                webView.setWebViewClient(new android.webkit.WebViewClient() {
+                    @Override
+                    public boolean shouldOverrideUrlLoading(
+                            android.webkit.WebView view,
+                            android.webkit.WebResourceRequest request) {
+                        String reqUrl = request.getUrl().toString();
+                        if (reqUrl.startsWith("intent://")) {
+                            try {
+                                android.content.Intent intent =
+                                        android.content.Intent.parseUri(
+                                                reqUrl,
+                                                android.content.Intent.URI_INTENT_SCHEME);
+                                if (getActivity().getPackageManager()
+                                        .resolveActivity(intent, 0) != null) {
+                                    getActivity().startActivity(intent);
+                                }
+                            } catch (Exception ignored) {}
+                            return true;
+                        }
+                        return false;
                     }
-                    return false;
-                }
-            });
+                });
 
-            webView.loadUrl(url);
+                webView.loadUrl(url);
 
-            // Close button
-            android.widget.Button closeBtn = new android.widget.Button(getActivity());
-            closeBtn.setText("✕ Close");
-            closeBtn.setTextColor(android.graphics.Color.WHITE);
-            closeBtn.setBackgroundColor(android.graphics.Color.parseColor("#80000000"));
-            closeBtn.setOnClickListener(v -> dialog.dismiss());
+                // Close button — top right
+                android.widget.Button closeBtn =
+                        new android.widget.Button(getActivity());
+                closeBtn.setText("✕");
+                closeBtn.setTextColor(android.graphics.Color.WHITE);
+                closeBtn.setTextSize(16);
+                closeBtn.setBackgroundColor(
+                        android.graphics.Color.parseColor("#99000000"));
 
-            android.widget.FrameLayout.LayoutParams webParams =
-                    new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                            android.widget.FrameLayout.LayoutParams.MATCH_PARENT);
+                android.widget.FrameLayout.LayoutParams webParams =
+                        new android.widget.FrameLayout.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT);
 
-            android.widget.FrameLayout.LayoutParams btnParams =
-                    new android.widget.FrameLayout.LayoutParams(
-                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT);
-            btnParams.gravity = android.view.Gravity.TOP | android.view.Gravity.END;
-            btnParams.setMargins(0, 40, 20, 0);
+                android.widget.FrameLayout.LayoutParams btnParams =
+                        new android.widget.FrameLayout.LayoutParams(120, 80);
+                btnParams.gravity =
+                        android.view.Gravity.TOP | android.view.Gravity.END;
+                btnParams.setMargins(0, 60, 20, 0);
 
-            layout.addView(webView, webParams);
-            layout.addView(closeBtn, btnParams);
+                layout.addView(webView, webParams);
+                layout.addView(closeBtn, btnParams);
 
-            dialog.setContentView(layout);
-            dialog.show();
+                dialog.setContentView(layout);
+                dialog.setCancelable(false); // prevent accidental dismiss
+                dialog.show();
 
-            // Auto close after 15 seconds
-            new android.os.Handler(android.os.Looper.getMainLooper())
-                    .postDelayed(dialog::dismiss, 15000);
+                closeBtn.setOnClickListener(v -> dialog.dismiss());
 
-            call.resolve();
+                // Auto close after 15 seconds
+                new android.os.Handler(android.os.Looper.getMainLooper())
+                        .postDelayed(dialog::dismiss, 15000);
+
+                call.resolve();
+            } catch (Exception e) {
+                call.reject("Monetag failed: " + e.getMessage());
+            }
         });
     }
 }

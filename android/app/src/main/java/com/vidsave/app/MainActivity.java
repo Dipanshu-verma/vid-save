@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(DownloadPlugin.class);
         registerPlugin(AdMobPlugin.class);
+        registerPlugin(UpdatePlugin.class);
         super.onCreate(savedInstanceState);
         MobileAds.initialize(this, initializationStatus -> {});
     }

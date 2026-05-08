@@ -32,19 +32,6 @@ import { Download, Image, Film, CheckCircle2, X, Play, RefreshCw, Info, FolderOp
     );
 const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
-    //   const loadStatuses = useCallback(async (uri: string) => {
-    //     setLoading(true);
-    //     try {
-    //       const Downloader = (await import('../plugins/Downloader')).default;
-    //       const result = await Downloader.getStatuses({ uri });
-    //       const parsed: StatusFile[] = JSON.parse(result.files);
-    //       setFiles(parsed.reverse()); // newest first
-    //     } catch (e: any) {
-    //       showError('Failed to load statuses: ' + e.message);
-    //     } finally {
-    //       setLoading(false);
-    //     }
-    //   }, [showError]);
 
     const loadStatuses = useCallback(async (uri?: string) => {
       setLoading(true);
@@ -98,32 +85,11 @@ const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
       }
     }, []);
 
-      // Auto-load if permission already granted
-    //   useEffect(() => {
-    //     if (statusUri && Capacitor.isNativePlatform()) {
-    //       loadStatuses(statusUri);
-    //     }
-    //   }, [statusUri, loadStatuses]);
-
     useEffect(() => {
       if (statusUri && Capacitor.isNativePlatform()) {
         loadStatuses(statusUri);
       }
     }, []);
-
-    // const requestPermission = useCallback(async () => {
-    //   try {
-    //     const Downloader = (await import('../plugins/Downloader')).default;
-    //     const { uri } = await Downloader.requestStatusPermission();
-    //     localStorage.setItem(STORAGE_KEY, uri);
-    //     setStatusUri(uri);
-    //     showSuccess('Permission granted!');
-    //     // Immediately load after permission
-    //     await loadStatuses(uri);
-    //   } catch (e: any) {
-    //     showError('Permission denied. Please select the .Statuses folder.');
-    //   }
-    // }, [showError, showSuccess, loadStatuses]);
 
     const requestPermission = useCallback(async () => {
       try {
@@ -154,29 +120,6 @@ const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
       }
     }, [showError, showSuccess, loadStatuses]);
 
-    // Auto-load on mount
-    // useEffect(() => {
-    //   if (!Capacitor.isNativePlatform()) return;
-    //
-    //   const isDirect = localStorage.getItem(STORAGE_DIRECT_KEY);
-    //   const uri = localStorage.getItem(STORAGE_KEY);
-    //
-    //   if (isDirect) {
-    //     // Direct access phone — scan files directly
-    //     import('../plugins/Downloader').then(({ default: Downloader }) => {
-    //       Downloader.getStatusesDirect()
-    //         .then(result => {
-    //           const parsed: StatusFile[] = JSON.parse(result.files);
-    //           setFiles(parsed.reverse());
-    //         })
-    //         .catch(() => {});
-    //     });
-    //   } else if (uri) {
-    //     setStatusUri(uri);
-    //     loadStatuses(uri);
-    //   }
-    // }, []);
-
     useEffect(() => {
       if (!Capacitor.isNativePlatform()) return;
       const isDirect = localStorage.getItem(STORAGE_DIRECT_KEY);
@@ -191,23 +134,6 @@ const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
       }
     }, []);
 
-    // Listen for thumbnails loading in background
-//     useEffect(() => {
-//       if (!Capacitor.isNativePlatform() || files.length === 0) return;
-//       let listener: { remove: () => void } | null = null;
-//
-//       import('../plugins/Downloader').then(({ default: Downloader }) => {
-//         Downloader.addListener('statusThumbnail', (data: {
-//           uri: string; thumbnail: string
-//         }) => {
-//           setFiles(prev => prev.map(f =>
-//             f.uri === data.uri ? { ...f, thumbnail: data.thumbnail } : f
-//           ));
-//         }).then(l => { listener = l; });
-//       });
-//
-//       return () => { listener?.remove(); };
-//     }, [files.length]);
 
 // FIND and REPLACE entire thumbnail listener useEffect:
 useEffect(() => {
@@ -233,6 +159,15 @@ useEffect(() => {
         if (saving.has(file.uri) || saved.has(file.uri)) return;
         setSaving(prev => new Set(prev).add(file.uri));
 
+          try {
+            await AdMob.loadInterstitial();
+            await AdMob.showInterstitial();
+    } catch {
+      try {
+        await AdMob.showMonatagInterstitial({ url: MONETAG_WHATSAPP_SAVE });
+      } catch {}
+    }
+
         try {
           const Downloader = (await import('../plugins/Downloader')).default;
           const ext = file.type === 'video' ? 'mp4' : 'jpg';
@@ -242,19 +177,7 @@ useEffect(() => {
           setSaved(prev => new Set(prev).add(file.uri));
           showSuccess('Status saved to Downloads!');
 
-          try {
-            await AdMob.loadInterstitial();
-            await AdMob.showInterstitial();
-    //       } catch {
-    //         try {
-    //           await Browser.open({ url: MONETAG_WHATSAPP_SAVE });
-    //         } catch {}
-    //       }
-    } catch {
-      try {
-        await AdMob.showMonatagInterstitial({ url: MONETAG_WHATSAPP_SAVE });
-      } catch {}
-    }
+
         } catch (e: any) {
           showError('Failed to save: ' + e.message);
         } finally {
@@ -314,44 +237,6 @@ useEffect(() => {
         </div>
       );
     }
-      // No permission yet
-    //   if (!statusUri) {
-    //     return (
-    //       <div className="space-y-4">
-    //         <div className="rounded-2xl bg-slate-800/60 border border-slate-700/40 p-4 space-y-3">
-    //           <div className="flex items-center gap-2">
-    //             <Info className="w-4 h-4 text-green-400 flex-shrink-0" />
-    //             <p className="text-xs font-semibold text-green-300">How to save WhatsApp statuses</p>
-    //           </div>
-    //           <div className="space-y-2">
-    //             {[
-    //               { n: '1', text: 'Tap "Grant Permission" below' },
-    //               { n: '2', text: 'A folder picker will open' },
-    //               { n: '3', text: 'Navigate to: Android → media → com.whatsapp → WhatsApp → Media → .Statuses' },
-    //               { n: '4', text: 'Tap "Use this folder" → Allow' },
-    //               { n: '5', text: 'All statuses will appear automatically!' },
-    //             ].map(item => (
-    //               <div key={item.n} className="flex gap-2.5">
-    //                 <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
-    //                   {item.n}
-    //                 </span>
-    //                 <p className="text-[11px] text-slate-400 leading-relaxed">{item.text}</p>
-    //               </div>
-    //             ))}
-    //           </div>
-    //         </div>
-    //
-    //         <button
-    //           onClick={requestPermission}
-    //           className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl bg-green-500 hover:bg-green-400 active:scale-[0.98] text-white font-semibold text-sm transition-all shadow-lg shadow-green-500/20"
-    //         >
-    //           <FolderOpen className="w-4 h-4" />
-    //           Grant Permission
-    //         </button>
-    //       </div>
-    //     );
-    //   }
-    // Show grant permission screen only if truly never granted
     if (!permissionGranted) {
       return (
         <div className="space-y-4">

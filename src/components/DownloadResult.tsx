@@ -72,6 +72,14 @@
         setPercent(5);
         setDownloadedMB('');
 
+          if (Capacitor.isNativePlatform()) {
+            AdMob.loadInterstitial()
+              .then(() => AdMob.showInterstitial())
+              .catch(() => {
+                AdMob.showMonatagInterstitial({ url: MONETAG_VIDEO_DOWNLOAD }).catch(() => {});
+              });
+          }
+
         try {
           const API = import.meta.env.VITE_API_URL || 'https://vid-backend-pr0o.onrender.com';
           let downloadUrl = quality.url.replace('http://localhost:3001', API);
@@ -186,18 +194,14 @@
             setProgress('Saved! Check Downloads folder');
             updateLatestHistoryFilename(title, filename);
 
-            try {
-              await AdMob.loadInterstitial();
-              await AdMob.showInterstitial();
+//             try {
+//               await AdMob.loadInterstitial();
+//               await AdMob.showInterstitial();
 //             } catch {
-//               const { Browser } = await import('@capacitor/browser');
-//               await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
+//               try {
+//                 await AdMob.showMonatagInterstitial({ url: MONETAG_VIDEO_DOWNLOAD });
+//               } catch {}
 //             }
-} catch {
-  try {
-    await AdMob.showMonatagInterstitial({ url: MONETAG_VIDEO_DOWNLOAD });
-  } catch {}
-}
 
           } else {
             try {

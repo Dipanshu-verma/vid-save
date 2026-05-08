@@ -16,6 +16,7 @@ import AdMob from './plugins/AdMob';
 import FAQ from './pages/FAQ';
 import Blog from './pages/Blog';
 import { MONETAG_VIDEO_DOWNLOAD } from './lib/constants';
+import UpdateChecker from './components/UpdateChecker';
 
 function registerSW() {
   if ('serviceWorker' in navigator) {
@@ -52,23 +53,22 @@ export default function App() {
 useEffect(() => {
   wakeUpServer();
 
-  // Show ONE ad on app start — only on native
-  if (Capacitor.isNativePlatform()) {
-    setTimeout(async () => {
+if (Capacitor.isNativePlatform()) {
+  // Start loading AdMob immediately in background
+  AdMob.loadInterstitial().catch(() => {});
+
+  // Show after 4 seconds — gives AdMob time to load
+  setTimeout(async () => {
+    try {
+      await AdMob.showInterstitial();
+    } catch {
+      // AdMob not ready — always show Monetag
       try {
-        await AdMob.loadInterstitial();
-        await AdMob.showInterstitial();
-      } catch {
-//         try {
-//           const { Browser } = await import('@capacitor/browser');
-//           await Browser.open({ url: MONETAG_VIDEO_DOWNLOAD });
-//         } catch {}
-try {
         await AdMob.showMonatagInterstitial({ url: MONETAG_VIDEO_DOWNLOAD });
       } catch {}
-      }
-    }, 500);
-  }
+    }
+  }, 1000);
+}
 
   const handleNav = () => {
     const params = new URLSearchParams(window.location.search);
@@ -118,6 +118,7 @@ try {
       <ToastProvider>
     <div className="min-h-screen bg-slate-900 text-white">
       <Header onNavigate={handleTabChange} />
+    <UpdateChecker />
 
       <main className="max-w-2xl mx-auto px-4 pt-5 pb-36">
         {renderContent()}

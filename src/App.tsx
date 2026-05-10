@@ -17,6 +17,7 @@ import { useDownload } from './hooks/useDownload';
 import { ToastProvider } from './components/Toast';
 import { Capacitor } from '@capacitor/core';
 import AdMob from './plugins/AdMob';
+import FooterDisclaimer from './components/FooterDisclaimer';
 
 async function wakeUpServer() {
   try {
@@ -75,6 +76,7 @@ export default function App() {
             <Route path="/blog/:slug" element={<BlogPost />} />
             <Route path="*" element={<Home onNavigate={handleNavigate} />} />
           </Routes>
+          <FooterDisclaimer />
         </main>
         <BottomNav />
         <InstallPrompt />
